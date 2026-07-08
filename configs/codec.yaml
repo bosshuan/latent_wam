@@ -1,0 +1,78 @@
+# Stage A — VJ-RAE + data config.
+#
+# Historical note: earlier milestone code called this module "codec". The current
+# design name is V-JEPA Representation Autoencoder (VJ-RAE): it maps frozen
+# multi-layer V-JEPA dense features to the 384-d latent grid used by the flow
+# generator, and reconstructs pooled V-JEPA features rather than RGB pixels.
+#
+# IMPORTANT: encoder objective dims (embed_dim / depth / num_heads / patch_size /
+# tubelet / img_size) are NOT listed here — they are read at runtime from the
+# instantiated V-JEPA backbone as the single source of truth (see
+# models/vjepa_encoder.py). Only the *design choice* extraction_layers lives in
+# config, so the §6.2 "final-layer vs 4-layer fusion" ablation is a config swap.
+
+encoder:
+  hub_name: vjepa2_1_vit_gigantic_384
+  # Confirmed from ../vjepa2/ code for depth=48 (gigantic). Asserted < depth at
+  # startup. Swap to [47] for the final-layer ablation.
+  extract_layers: [11, 23, 37, 47]
+  pretrained: true          # server only; local tests inject a mock backbone
+  # Offline-server alternative to pretrained=true. Set pretrained=false and use
+  # checkpoint_path to avoid torch.hub downloading weights at runtime.
+  checkpoint_path: null
+  checkpoint_key: target_encoder
+  checkpoint_strict: true
+  assert_gigantic: true     # fail loud if loaded dims != confirmed gigantic
+
+data:
+  source: robot_lerobot      # debug config overrides this to synthetic
+  robot_only: true
+  # Locked temporal parameters (CLAUDE.md §3). dataset fps is read per-dataset
+  # from meta/info.json — never set here.
+  vision_fps: 5
+  tubelet: 2
+  seconds_per_chunk: 0.4
+  history_chunks: 4
+  future_chunks: 4
+  target_control_fps: 30
+  img_size: 384            # native; no 256 / no RoPE interpolation
+  # Stage A does not use actionless video in the main training path.
+
+feature_cache:
+  enabled: true
+  cache_dir: ./.feature_cache
+  # Versioned key components; bump to invalidate stale entries.
+  vjepa_version: vjepa2_1_vitG_384
+  norm_version: v0            # FixedFeatureNormalizer stats version (M2)
+  # Capacity guard (user note 2): raw multi-level features are large
+  # (~7.6 MB / time-token fp16). Cap the cache and/or restrict to a subset.
+  max_bytes: null             # e.g. 500_000_000_000 for 500 GB; null = uncapped
+  allowed_pairs: null         # null = cache all; or a list of [dataset_id, episode]
+
+normalization:
+  # V-JEPA representation stats are computed OFFLINE over paired robot
+  # video+action data for Stage A, separate from action/state stats.
+  stats_path: null
+
+# VJ-RAE (M2). num_layers/embed_dim/grid are NOT here for real training — derived
+# at runtime from the encoder. The legacy `codec` key remains for compatibility.
+vj_rae: &vj_rae
+  hidden_dim: 1024            # MultiLevelFusion / VJ-RAE hidden width
+  latent_dim: 384             # flow-space latent per token (channel dim)
+  pool: 2                     # TokenReducer 2x2 -> 24x24 => 12x12 = 144 tokens
+  lr: 1.0e-4
+  log_every: 50
+  out_path: ./checkpoints/vj_rae.pt
+  probe_action_dim: 7         # action-discriminability probe out dim (per schema)
+  loss:
+    lambda_cos: 1.0
+    lambda_var: 1.0
+    lambda_cov: 0.04
+    lambda_dyn: 0.1          # small: pressure VJ-RAE to keep action info
+    var_gamma: 1.0
+
+codec: *vj_rae
+
+seed: 0
+distributed:
+  backend: nccl               # gloo for CPU smoke

@@ -1,0 +1,51 @@
+# InternData-A1 dual-arm real Wan2.2-TI2V-5B forward smoke over cached VJ-RAE latents.
+#
+# Prerequisites:
+#   bash scripts/inspect_wan2_2_ti2v_5b.sh
+#   bash scripts/cache_interndata_a1_dual_arm_vjepa_vjrae_medium.sh
+#
+# This is intentionally NOT training: it loads the official Wan DiT checkpoint,
+# drops VAE/pixel-head keys, casts the model to bf16 on one GPU, and runs exactly
+# one no-grad forward over a cached real robot batch.
+
+seed: 59
+device: cuda
+dtype: bf16
+allow_tf32: true
+schema_report: reports/interndata_a1/schema_report.json
+manifest_path: reports/interndata_a1/latent_cache_vjepa_vjrae_medium_manifest.jsonl
+
+weights:
+  wan_checkpoint: /mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B
+
+data:
+  batch_size: 1
+  train_start_item: 0
+  train_index_modulus: 8
+  train_index_remainders: [0]
+  train_max_items: 1
+  train_shuffle: false
+  num_workers: 0
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+
+model:
+  type: wan
+  wan_config_path: configs/model/latent_wam_dit.yaml
+  wan_key_path: [wan]
+  latent_dim: 384
+  action_dim: 14
+  state_dim: 14
+  grid_hw: [12, 12]
+  max_actions: 12
+  num_embodiments: 2
+  max_chunks: 16
+  text_seq_len: 4
+  action_token_scale: 2.0
+  action_latent_bridge_scale: 1.0
+
+smoke:
+  timestep: 0.5

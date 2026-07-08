@@ -1,0 +1,31 @@
+# InternData-A1 dual-arm real dataloader smoke.
+#
+# Prerequisite:
+#   bash scripts/scan_interndata_a1.sh
+#
+# Run:
+#   bash scripts/smoke_interndata_a1_dual_arm.sh
+
+schema_report: reports/interndata_a1/schema_report.json
+reader_backend: direct
+
+filter:
+  embodiments: [interndata_a1_dual_arm]
+  action_schema_ids: [0]
+
+binding:
+  # Common camera view across all InternData-A1 sim subsets.
+  image_key: images.rgb.head
+
+data:
+  batch_size: 2
+  max_batches: 2
+  max_samples_per_dataset: 16
+  start_index: 80
+  num_workers: 0
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+  token_grid: [8, 24, 24]

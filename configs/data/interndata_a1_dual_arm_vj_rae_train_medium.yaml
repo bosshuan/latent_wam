@@ -1,0 +1,71 @@
+# InternData-A1 dual-arm VJ-RAE medium real-data run.
+
+seed: 37
+schema_report: reports/interndata_a1/schema_report.json
+reader_backend: direct
+device: cuda
+allow_tf32: true
+log_prefix: vj-rae-medium
+
+filter:
+  embodiments: [interndata_a1_dual_arm]
+  action_schema_ids: [0]
+
+binding:
+  image_key: images.rgb.head
+
+data:
+  batch_size: 1
+  max_batches: 512
+  max_samples_per_dataset: 256
+  start_index: 80
+  num_workers: 0
+  pin_memory: true
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+  token_grid: [8, 24, 24]
+
+preprocess:
+  img_size: 384
+  resize_mode: bilinear
+  normalize: true
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+encoder:
+  hub_name: vjepa2_1_vit_gigantic_384
+  hub_repo: ../vjepa2
+  hub_source: local
+  extract_layers: [11, 23, 37, 47]
+  pretrained: false
+  checkpoint_path: /mnt/sfs_turbo/fyy/checkpoints/vjepa2/vjepa2_1_vitG_384.pt
+  checkpoint_key: target_encoder
+  checkpoint_strict: true
+  assert_gigantic: true
+
+feature_cache:
+  norm_version: interndata-a1-dual-arm-medium-v0
+
+normalizer:
+  max_batches: 64
+
+vj_rae:
+  hidden_dim: 1024
+  latent_dim: 384
+  pool: 2
+  lr: 1.0e-4
+  weight_decay: 0.0
+  max_steps: 800
+  log_every: 25
+  out_path: checkpoints/interndata_a1/vj_rae_dual_arm_medium.pt
+  probe_action_dim: 14
+  probe_hidden_dim: 256
+  loss:
+    lambda_cos: 1.0
+    lambda_var: 1.0
+    lambda_cov: 0.04
+    lambda_dyn: 0.2
+    var_gamma: 1.0

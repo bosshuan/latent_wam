@@ -1,0 +1,60 @@
+# 8xA100 debug bringup for Stage-A unified latent-action flow.
+#
+# This uses synthetic robot-only VJ-RAE latents and actions. It is for verifying
+# distributed execution, loss wiring, counterfactual forwards, monitors, and
+# checkpoint save before plugging in real LeRobot/cached VJ-RAE data.
+
+seed: 11
+lr: 1.0e-4
+total_steps: 8
+log_every: 1
+val_every: 4
+out_path: ./checkpoints/debug/unified_robot_synthetic.pt
+
+data:
+  source: synthetic
+  robot_only: true
+
+synthetic:
+  batch_size: 2              # per rank; needed so L_cf can permute within schema
+  num_steps: 8
+  context_chunks: 4
+  future_chunks: 4
+  grid_n: 144
+  latent_dim: 384
+  actions_per_chunk: 4
+  action_dim: 7
+  state_dim: 8
+  num_embodiments: 2
+
+model:
+  type: tiny
+  hidden_dim: 128
+  depth: 2
+  heads: 4
+  max_chunks: 16
+
+loss:
+  lambda_z: 1.0
+  lambda_a: 1.0
+  lambda_clean: 1.0
+  lambda_cos: 1.0
+  lambda_roll: 0.0
+  lambda_cf: 0.1
+  cf_delta: 0.05
+  cf_distance: l2_token
+  lambda_v: 0.0
+  use_counterfactual_action: true
+
+timestep:
+  coupled: true
+
+sampler:
+  batch_size: 16             # global effective = batch_size_per_rank * nproc
+  require_min_schema: 2
+
+distributed:
+  backend: nccl
+  unified_strategy: ddp      # FSDP is for real Wan; DDP is simpler for tiny debug
+  precision: bf16
+  activation_checkpointing: false

@@ -1,0 +1,181 @@
+[
+  {
+    "dataset_id": "interndata_a1__sim_dual_arm__sim__articulation_tasks__lift2__heat_the_food_in_the_microwave",
+    "repo_or_path": "/mnt/sfs_turbo/rl/InternData-A1/sim/articulation_tasks/lift2/heat_the_food_in_the_microwave",
+    "codebase_version": "v2.1",
+    "fps": 30.0,
+    "feature_keys": [
+      "actions.left_gripper.position",
+      "actions.left_joint.position",
+      "actions.right_gripper.position",
+      "actions.right_joint.position",
+      "episode_index",
+      "frame_index",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right",
+      "images.rgb.head",
+      "index",
+      "master_actions.left_gripper.openness",
+      "master_actions.left_gripper.position",
+      "master_actions.left_joint.position",
+      "master_actions.right_gripper.openness",
+      "master_actions.right_gripper.position",
+      "master_actions.right_joint.position",
+      "states.left_gripper.position",
+      "states.left_joint.position",
+      "states.right_gripper.position",
+      "states.right_joint.position",
+      "task_index",
+      "timestamp"
+    ],
+    "visual_candidate_keys": [
+      "images.rgb.head",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right"
+    ],
+    "camera_keys": [
+      "images.rgb.head",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right"
+    ],
+    "state_keys": [
+      "states.left_joint.position",
+      "states.left_gripper.position",
+      "states.right_joint.position",
+      "states.right_gripper.position"
+    ],
+    "action_keys": [
+      "actions.left_joint.position",
+      "actions.left_gripper.position",
+      "actions.right_joint.position",
+      "actions.right_gripper.position"
+    ],
+    "raw_state_dim": 14,
+    "raw_action_dim": 14,
+    "selected_state_dim": 14,
+    "selected_action_dim": 14,
+    "semantics": "dual_arm_joint_gripper",
+    "embodiment": "interndata_a1_dual_arm",
+    "embodiment_id": 0,
+    "action_schema_id": 0,
+    "norm_stats_path": "",
+    "warnings": []
+  },
+  {
+    "dataset_id": "interndata_a1__sim_dual_arm__sim__articulation_tasks__split_aloha__rotate_the_left_hearth_right_arm_counterclockwise",
+    "repo_or_path": "/mnt/sfs_turbo/rl/InternData-A1/sim/articulation_tasks/split_aloha/rotate_the_left_hearth_right_arm_counterclockwise",
+    "codebase_version": "v2.1",
+    "fps": 30.0,
+    "feature_keys": [
+      "actions.left_gripper.position",
+      "actions.left_joint.position",
+      "actions.right_gripper.position",
+      "actions.right_joint.position",
+      "episode_index",
+      "frame_index",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right",
+      "images.rgb.head",
+      "index",
+      "master_actions.left_gripper.openness",
+      "master_actions.left_gripper.position",
+      "master_actions.left_joint.position",
+      "master_actions.right_gripper.openness",
+      "master_actions.right_gripper.position",
+      "master_actions.right_joint.position",
+      "states.left_gripper.position",
+      "states.left_joint.position",
+      "states.right_gripper.position",
+      "states.right_joint.position",
+      "task_index",
+      "timestamp"
+    ],
+    "visual_candidate_keys": [
+      "images.rgb.head",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right"
+    ],
+    "camera_keys": [
+      "images.rgb.head",
+      "images.rgb.hand_left",
+      "images.rgb.hand_right"
+    ],
+    "state_keys": [
+      "states.left_joint.position",
+      "states.left_gripper.position",
+      "states.right_joint.position",
+      "states.right_gripper.position"
+    ],
+    "action_keys": [
+      "actions.left_joint.position",
+      "actions.left_gripper.position",
+      "actions.right_joint.position",
+      "actions.right_gripper.position"
+    ],
+    "raw_state_dim": 14,
+    "raw_action_dim": 14,
+    "selected_state_dim": 14,
+    "selected_action_dim": 14,
+    "semantics": "dual_arm_joint_gripper",
+    "embodiment": "interndata_a1_dual_arm",
+    "embodiment_id": 0,
+    "action_schema_id": 0,
+    "norm_stats_path": "",
+    "warnings": []
+  },
+  {
+    "dataset_id": "interndata_a1__sim_franka__sim__long_horizon_tasks__franka__put_the_trash_in_trashcan_part2",
+    "repo_or_path": "/mnt/sfs_turbo/rl/InternData-A1/sim/long_horizon_tasks/franka/put_the_trash_in_trashcan_part2",
+    "codebase_version": "v2.1",
+    "fps": 30.0,
+    "feature_keys": [
+      "actions.gripper.openness",
+      "actions.gripper.pose",
+      "actions.gripper.position",
+      "actions.joint.position",
+      "episode_index",
+      "frame_index",
+      "images.rgb.hand",
+      "images.rgb.head",
+      "index",
+      "master_actions.gripper.openness",
+      "master_actions.gripper.pose",
+      "master_actions.gripper.position",
+      "master_actions.joint.position",
+      "states.gripper.pose",
+      "states.gripper.position",
+      "states.joint.position",
+      "task_index",
+      "timestamp"
+    ],
+    "visual_candidate_keys": [
+      "images.rgb.head",
+      "images.rgb.hand"
+    ],
+    "camera_keys": [
+      "images.rgb.head",
+      "images.rgb.hand"
+    ],
+    "state_keys": [
+      "states.joint.position",
+      "states.gripper.position",
+      "states.gripper.pose"
+    ],
+    "action_keys": [
+      "actions.joint.position",
+      "actions.gripper.position",
+      "actions.gripper.openness",
+      "actions.gripper.pose"
+    ],
+    "raw_state_dim": 14,
+    "raw_action_dim": 15,
+    "selected_state_dim": 14,
+    "selected_action_dim": 15,
+    "semantics": "franka_joint_gripper_pose",
+    "embodiment": "interndata_a1_franka",
+    "embodiment_id": 1,
+    "action_schema_id": 1,
+    "norm_stats_path": "",
+    "warnings": []
+  }
+]

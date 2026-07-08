@@ -1,0 +1,50 @@
+# Latent-WAM DiT — M4 (Wan2.2-TI2V-5B backbone).
+#
+# `wan` block = the OFFICIAL Wan2.2-5B DiT geometry, read at build time by
+# WanConfig.from_yaml(..., key_path=("wan",)) — NOT hardcoded in model code
+# (CLAUDE.md §3). On the server, prefer reading these straight from the Wan repo's
+# own config; the values here are the published 5B geometry and double as the
+# fail-loud sanity target (models/wan_config.py::WAN22_TI2V_5B).
+wan:
+  dim: 3072
+  num_layers: 30
+  num_heads: 24          # head_dim = 3072/24 = 128
+  ffn_dim: 14336
+  freq_dim: 256
+  text_dim: 4096          # umT5-XXL hidden (cross-attn context dim)
+  eps: 1.0e-6
+  qk_norm: true
+  cross_attn_norm: true
+  # VAE-side channels — kept only for checkpoint sanity; NEVER loaded/used.
+  in_dim: 48
+  out_dim: 48
+
+# Our from-scratch additions (replace Wan VAE patch-embed / pixel head + add the
+# action branch). latent_dim/grid come from the frozen codec (M2), not Wan.
+latent:
+  latent_dim: 384         # codec token channel dim
+  grid_hw: [12, 12]       # 24x24 -> 2x2 pool -> 12x12 = 144 tokens
+  max_chunks: 16          # history(4)+future(4) with headroom for RoPE time index
+  text_seq_len: 8
+
+action:
+  action_dim: 7           # per-schema padded; per-embodiment decoded
+  num_embodiments: 4
+  max_actions: 8          # actions_per_chunk upper bound
+  state_dim: 0            # proprio dim (per dataset; 0 = no state token)
+  action_token_scale: 1.0
+  action_latent_bridge_scale: 0.25
+
+value:
+  value_bins: 1           # Stage A stub (lambda_v=0)
+
+# Weight loading (models/weight_loading.py). NEVER load VAE / pixel head / CLIP
+# image branch; print missing/unexpected; expected-missing = from-scratch modules.
+weights:
+  wan_checkpoint: null    # server path to the Wan2.2-5B DiT state_dict
+  strict: false
+
+# Text / CFG (CLAUDE.md §3). null-text unified with action_valid=0 video.
+text:
+  text_cfg_dropout: 0.1
+  null_text: ""

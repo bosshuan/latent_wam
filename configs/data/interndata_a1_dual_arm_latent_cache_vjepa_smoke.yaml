@@ -1,0 +1,66 @@
+# InternData-A1 dual-arm latent-cache smoke with a local V-JEPA checkpoint.
+#
+# This validates that the downloaded V-JEPA 2.1 gigantic target-encoder weights
+# load from disk and produce the expected dense feature shape. VJ-RAE is still
+# random-smoke until we train a real VJ-RAE checkpoint.
+
+schema_report: reports/interndata_a1/schema_report.json
+reader_backend: direct
+device: cuda
+allow_tf32: true
+
+filter:
+  embodiments: [interndata_a1_dual_arm]
+  action_schema_ids: [0]
+
+binding:
+  image_key: images.rgb.head
+
+data:
+  batch_size: 1
+  max_batches: 2
+  max_samples_per_dataset: 4
+  start_index: 80
+  num_workers: 0
+  pin_memory: true
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+  token_grid: [8, 24, 24]
+
+preprocess:
+  img_size: 384
+  resize_mode: bilinear
+  normalize: true
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+
+encoder:
+  hub_name: vjepa2_1_vit_gigantic_384
+  hub_repo: ../vjepa2
+  hub_source: local
+  extract_layers: [11, 23, 37, 47]
+  pretrained: false
+  checkpoint_path: /mnt/sfs_turbo/fyy/checkpoints/vjepa2/vjepa2_1_vitG_384.pt
+  checkpoint_key: target_encoder
+  checkpoint_strict: true
+  assert_gigantic: true
+
+vj_rae:
+  hidden_dim: 1024
+  latent_dim: 384
+  pool: 2
+  checkpoint_path: null
+  allow_random_vj_rae: true
+  strict: true
+
+feature_cache:
+  cache_dir: ./.feature_cache/interndata_a1_dual_arm_vjepa_smoke
+  manifest_path: reports/interndata_a1/latent_cache_vjepa_smoke_manifest.jsonl
+  vjepa_version: vjepa2_1_vitG_384-local
+  norm_version: interndata-a1-dual-arm-smoke-v0
+  vj_rae_version: random-smoke-v0
+  max_bytes: null
+  verify_readback: true

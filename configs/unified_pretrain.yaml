@@ -1,0 +1,75 @@
+# Stage A — robot-only unified latent-action flow pretraining config.
+#
+# Mainline Stage A follows DreamZero/VLA-style paired robot video+action data.
+# Actionless video is kept only as a Stage-A+ ablation path, not as default train
+# data. For bringup, use configs/debug/unified_robot_synthetic.yaml.
+
+defaults:
+  vj_rae: codec.yaml         # compatibility: old file name, new concept
+
+seed: 0
+lr: 1.0e-4
+total_steps: 100000
+log_every: 50
+val_every: 1000
+out_path: ./checkpoints/unified_flow.pt
+
+data:
+  source: robot_lerobot      # debug config overrides this to synthetic
+  robot_only: true
+
+# Loss weights for L_A. value head is a STUB this stage: lambda_v=0.
+loss:
+  lambda_z: 1.0              # latent flow-matching
+  lambda_a: 1.0              # action flow-matching
+  lambda_clean: 1.0          # clean-target r_hat1 ~ r1
+  lambda_cos: 1.0            # cosine term inside clean loss
+  lambda_roll: 0.0           # two-step rollout (ramped up late in curriculum)
+  lambda_cf: 0.1             # counterfactual action contrast (robot only)
+  cf_delta: 0.05             # hinge margin delta
+  cf_distance: l2_token      # S_a/L_cf/Delta_cond token-norm distance
+  lambda_v: 0.0              # value head STUB — zero this stage
+  use_counterfactual_action: true
+  inverse_dynamics:
+    enabled: false           # ablation only
+    lambda_id: 0.0
+
+# Collapse monitors (printed at validation; alarm thresholds). CLAUDE.md §2.9.
+collapse_monitor:
+  min_action_sensitivity: 0.01     # S_a alarm floor
+  require_delta_cond_positive: true
+
+# Timestep schedule (doc §2.6). Starts coupled (t_z==t_a); the curriculum's last
+# stage flips to decoupled (latent higher-noise, action uniform).
+timestep:
+  coupled: true                    # initial; CurriculumSchedule overrides per step
+
+# Robot-only curriculum. The schedule itself is code-driven
+# (data/mixed_batch_sampler.py::CurriculumSchedule): latent/action warmup ->
+# joint -> action/rollout ramp + coupled->decoupled. The sampler guarantees
+# homogeneous robot batches and >=2 rows per action_schema (for L_cf).
+sampler:
+  batch_size: 32
+  require_min_schema: 2            # >=2 same-schema rows so L_cf can permute
+  curriculum: code                 # CurriculumSchedule() default
+
+# Feature cache: once the VJ-RAE is frozen, store the 384-d VJ-RAE latent (fp16)
+# instead of raw multi-level features. vj_rae_version folds the VJ-RAE ckpt id
+# into the key so representation-latent entries never collide with raw features.
+feature_cache:
+  vj_rae_version: null             # set to the frozen VJ-RAE ckpt id on server
+  codec_version: null              # backward-compatible key name
+
+# Text / CFG (M4).
+text:
+  text_cfg_dropout: 0.1
+  null_text: ""
+
+# Distributed (train/dist_utils.py): real unified flow uses FSDP; debug synthetic
+# config uses DDP by default to keep bringup simple.
+distributed:
+  backend: nccl                    # gloo for CPU smoke tests
+  unified_strategy: fsdp
+  codec_strategy: ddp
+  precision: bf16
+  activation_checkpointing: true

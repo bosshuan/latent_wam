@@ -1,0 +1,181 @@
+{
+  "status": "PASS",
+  "checkpoint_path": "/mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B",
+  "shards": [
+    "/mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B/diffusion_pytorch_model-00001-of-00003.safetensors",
+    "/mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B/diffusion_pytorch_model-00002-of-00003.safetensors",
+    "/mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B/diffusion_pytorch_model-00003-of-00003.safetensors"
+  ],
+  "num_shards": 3,
+  "num_checkpoint_tensors": 825,
+  "num_loadable_tensors": 820,
+  "num_model_tensors": 858,
+  "dtype_counts": {
+    "F32": 825
+  },
+  "file_key_counts": {
+    "diffusion_pytorch_model-00001-of-00003.safetensors": 413,
+    "diffusion_pytorch_model-00002-of-00003.safetensors": 407,
+    "diffusion_pytorch_model-00003-of-00003.safetensors": 5
+  },
+  "stripped_prefix": null,
+  "config": {
+    "values": {
+      "dim": 3072,
+      "num_layers": 30,
+      "num_heads": 24,
+      "ffn_dim": 14336,
+      "freq_dim": 256,
+      "text_dim": 4096,
+      "eps": 1e-06
+    },
+    "expected": {
+      "dim": 3072,
+      "num_layers": 30,
+      "num_heads": 24,
+      "ffn_dim": 14336,
+      "freq_dim": 256,
+      "text_dim": 4096,
+      "eps": 1e-06
+    },
+    "matches_known_ti2v_5b": true,
+    "head_dim": 128
+  },
+  "companion_files": {
+    "config_json": true,
+    "configuration_json": true,
+    "safetensors_index": true,
+    "vae": true,
+    "umt5": true
+  },
+  "dropped_counts": {
+    "pixel_head": 3,
+    "vae_patch_embed": 2
+  },
+  "dropped_examples": {
+    "pixel_head": [
+      "head.head.bias",
+      "head.head.weight",
+      "head.modulation"
+    ],
+    "vae_patch_embed": [
+      "patch_embedding.bias",
+      "patch_embedding.weight"
+    ]
+  },
+  "missing_count": 38,
+  "missing_examples": [
+    "action_encoder.W1.W",
+    "action_encoder.W1.b",
+    "action_encoder.W2.W",
+    "action_encoder.W2.b",
+    "action_encoder.W3.W",
+    "action_encoder.W3.b",
+    "action_head.decoder.layer1.W",
+    "action_head.decoder.layer1.b",
+    "action_head.decoder.layer2.W",
+    "action_head.decoder.layer2.b",
+    "action_to_latent.0.bias",
+    "action_to_latent.0.weight",
+    "action_to_latent.1.bias",
+    "action_to_latent.1.weight",
+    "latent_adapter.proj.0.bias",
+    "latent_adapter.proj.0.weight",
+    "latent_adapter.proj.2.bias",
+    "latent_adapter.proj.2.weight",
+    "latent_head.proj.bias",
+    "latent_head.proj.weight",
+    "latent_head.t_mod.1.bias",
+    "latent_head.t_mod.1.weight",
+    "state_adapter.mlp.layer1.W",
+    "state_adapter.mlp.layer1.b",
+    "state_adapter.mlp.layer2.W",
+    "state_adapter.mlp.layer2.b",
+    "text_encoder.embed.weight",
+    "tokenizer.action_pos_embed.weight",
+    "tokenizer.chunk_embed.weight",
+    "tokenizer.modality_embed.weight",
+    "tokenizer.spatial_embed.weight",
+    "value_head.net.0.bias",
+    "value_head.net.0.weight",
+    "value_head.net.1.bias",
+    "value_head.net.1.weight",
+    "value_head.net.3.bias",
+    "value_head.net.3.weight",
+    "value_query"
+  ],
+  "backbone_missing_count": 0,
+  "backbone_missing_examples": [],
+  "unexpected_count": 0,
+  "unexpected_examples": [],
+  "shape_mismatch_count": 0,
+  "shape_mismatch_examples": [],
+  "unexpected_missing_count": 0,
+  "unexpected_missing_examples": [],
+  "raw_to_mapped_examples": [
+    [
+      "blocks.0.cross_attn.k.bias",
+      "backbone.blocks.0.cross_attn.k.bias"
+    ],
+    [
+      "blocks.0.cross_attn.k.weight",
+      "backbone.blocks.0.cross_attn.k.weight"
+    ],
+    [
+      "blocks.0.cross_attn.norm_k.weight",
+      "backbone.blocks.0.cross_attn.norm_k.weight"
+    ],
+    [
+      "blocks.0.cross_attn.norm_q.weight",
+      "backbone.blocks.0.cross_attn.norm_q.weight"
+    ],
+    [
+      "blocks.0.cross_attn.o.bias",
+      "backbone.blocks.0.cross_attn.o.bias"
+    ],
+    [
+      "blocks.0.cross_attn.o.weight",
+      "backbone.blocks.0.cross_attn.o.weight"
+    ],
+    [
+      "blocks.0.cross_attn.q.bias",
+      "backbone.blocks.0.cross_attn.q.bias"
+    ],
+    [
+      "blocks.0.cross_attn.q.weight",
+      "backbone.blocks.0.cross_attn.q.weight"
+    ],
+    [
+      "blocks.0.cross_attn.v.bias",
+      "backbone.blocks.0.cross_attn.v.bias"
+    ],
+    [
+      "blocks.0.cross_attn.v.weight",
+      "backbone.blocks.0.cross_attn.v.weight"
+    ],
+    [
+      "blocks.0.ffn.0.bias",
+      "backbone.blocks.0.ffn.0.bias"
+    ],
+    [
+      "blocks.0.ffn.0.weight",
+      "backbone.blocks.0.ffn.0.weight"
+    ],
+    [
+      "blocks.0.ffn.2.bias",
+      "backbone.blocks.0.ffn.2.bias"
+    ],
+    [
+      "blocks.0.ffn.2.weight",
+      "backbone.blocks.0.ffn.2.weight"
+    ],
+    [
+      "blocks.0.modulation",
+      "backbone.blocks.0.modulation"
+    ],
+    [
+      "blocks.0.norm3.bias",
+      "backbone.blocks.0.norm3.bias"
+    ]
+  ]
+}

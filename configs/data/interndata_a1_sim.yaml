@@ -1,0 +1,33 @@
+# InternData-A1 real-data schema scan config.
+#
+# Server layout provided by user:
+#   /mnt/sfs_turbo/rl/InternData-A1/sim/.../<LeRobot subset>/meta/info.json
+#
+# Run from this code root:
+#   bash scripts/scan_interndata_a1.sh
+
+dataset_family: interndata_a1
+root: /mnt/sfs_turbo/rl/InternData-A1
+
+scan:
+  # Current scan finds three LeRobot roots: two dual-arm articulation tasks and
+  # one Franka long-horizon task. Keep this as a lower bound so a wrong mount/path
+  # fails early while allowing more tasks to be added later.
+  expected_min_count: 3
+  output_markdown: reports/interndata_a1/schema_report.md
+  output_json: reports/interndata_a1/schema_report.json
+  fail_on_warnings: true
+
+datasets:
+  - name: sim_dual_arm
+    semantics: dual_arm_joint_gripper
+    embodiment: interndata_a1_dual_arm
+    info_globs:
+      - sim/articulation_tasks/lift2/**/meta/info.json
+      - sim/articulation_tasks/split_aloha/**/meta/info.json
+
+  - name: sim_franka
+    semantics: franka_joint_gripper_pose
+    embodiment: interndata_a1_franka
+    info_globs:
+      - sim/long_horizon_tasks/franka/**/meta/info.json

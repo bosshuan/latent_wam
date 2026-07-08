@@ -1,0 +1,59 @@
+# Latent-WAM Python dependencies.
+#
+# Install from this code root:
+#   pip install -r requirements.txt
+#
+# Notes:
+# - On CUDA servers, install a PyTorch build that matches the driver/CUDA stack.
+#   If the server already has torch/torchvision, keep those and install the rest
+#   with `pip install -r requirements.txt --no-deps` as needed.
+# - The current debug scripts use synthetic data and mainly need torch, numpy,
+#   PyYAML, and pytest/dev utilities. Real robot smoke uses the direct LeRobot
+#   v2.1 reader plus parquet/video IO, without requiring the official lerobot
+#   package.
+# - V-JEPA2 is referenced as code in the sibling ../vjepa2 repo and by torch.hub
+#   in `models/vjepa_encoder.py`; install/use that local repo separately if the
+#   training server has no internet access.
+
+# Core training/runtime
+torch>=2.4
+torchvision>=0.19
+numpy>=1.26
+PyYAML>=6.0
+tqdm>=4.66
+psutil>=5.9
+
+# V-JEPA / representation models
+timm>=1.0
+einops>=0.8
+iopath>=0.1.10
+Pillow>=10.0
+opencv-python-headless>=4.8
+decord>=0.6
+
+# LeRobot-format dataset and cache plumbing.
+# The official `lerobot` package is optional here: on some CUDA servers it tries
+# to upgrade torch. Real-data smoke can use the direct LeRobot v2.1 reader
+# implemented in data/lerobot_v21_direct.py.
+datasets>=3.0
+pandas>=2.0
+pyarrow>=15.0
+h5py>=3.10
+av>=12.0
+
+# Wan / text / checkpoint ecosystem
+transformers>=4.51
+sentencepiece>=0.2
+accelerate>=0.33
+safetensors>=0.4
+huggingface-hub>=0.24
+diffusers>=0.30
+peft>=0.5
+omegaconf>=2.3
+
+# Logging and experiment monitoring
+tensorboard>=2.16
+wandb>=0.17
+
+# Tests / development
+pytest>=8.0

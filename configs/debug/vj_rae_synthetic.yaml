@@ -1,0 +1,41 @@
+# 8xA100 debug bringup for VJ-RAE.
+#
+# This is intentionally synthetic: it verifies torchrun/DDP, normalizer all-reduce,
+# VJ-RAE reconstruction/probe loss, logging, and checkpoint save without requiring
+# V-JEPA, LeRobot, or cached features.
+
+seed: 7
+
+data:
+  source: synthetic
+  robot_only: true
+
+synthetic:
+  batch_size: 2              # per rank
+  num_steps: 8
+  time_tokens: 8
+  grid_hw: [24, 24]
+  num_layers: 4
+  embed_dim: 64
+  action_dim: 7
+
+feature_cache:
+  norm_version: debug-v0
+
+vj_rae:
+  hidden_dim: 256
+  latent_dim: 128
+  pool: 2
+  lr: 1.0e-4
+  log_every: 1
+  out_path: ./checkpoints/debug/vj_rae_synthetic.pt
+  probe_action_dim: 7
+  loss:
+    lambda_cos: 1.0
+    lambda_var: 1.0
+    lambda_cov: 0.04
+    lambda_dyn: 0.1
+    var_gamma: 1.0
+
+distributed:
+  backend: nccl

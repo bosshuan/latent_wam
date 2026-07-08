@@ -1,0 +1,89 @@
+# InternData-A1 dual-arm Wan-style unified-flow smoke over cached VJ-RAE latents.
+#
+# Prerequisite:
+#   bash scripts/cache_interndata_a1_dual_arm_vjepa_vjrae_medium.sh
+#
+# This intentionally uses a tiny randomly initialized Wan-style trunk. It checks
+# the M4 architecture wiring over real cached latents before the real 5B Wan
+# checkpoint/FSDP path is introduced.
+
+seed: 47
+device: cuda
+allow_tf32: true
+schema_report: reports/interndata_a1/schema_report.json
+manifest_path: reports/interndata_a1/latent_cache_vjepa_vjrae_medium_manifest.jsonl
+out_path: checkpoints/interndata_a1/unified_cached_wan_tiny_smoke.pt
+
+lr: 2.0e-4
+weight_decay: 0.0
+total_steps: 20
+log_every: 5
+val_every: 10
+num_val_batches: 2
+
+data:
+  batch_size: 2
+  train_start_item: 0
+  train_index_modulus: 8
+  train_index_remainders: [0, 1, 2, 3, 4, 5, 6]
+  train_max_items: 64
+  val_start_item: 0
+  val_index_modulus: 8
+  val_index_remainders: [7]
+  val_max_items: 16
+  train_shuffle: true
+  val_shuffle: true
+  num_workers: 0
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+
+model:
+  type: wan_tiny
+  latent_dim: 384
+  action_dim: 14
+  state_dim: 14
+  grid_hw: [12, 12]
+  max_actions: 12
+  num_embodiments: 2
+  max_chunks: 16
+  text_seq_len: 4
+  action_token_scale: 2.0
+  action_latent_bridge_scale: 1.0
+  wan:
+    dim: 192
+    num_layers: 4
+    num_heads: 4
+    ffn_dim: 512
+    freq_dim: 64
+    text_dim: 64
+    eps: 1.0e-6
+    qk_norm: true
+    cross_attn_norm: true
+    in_dim: 48
+    out_dim: 48
+
+loss:
+  lambda_z: 1.0
+  lambda_a: 0.2
+  lambda_clean: 1.0
+  lambda_cos: 1.0
+  lambda_roll: 0.0
+  lambda_cf: 1.0
+  cf_delta: 0.05
+  cf_distance: l2_token
+  cf_action_mode: noisy
+  monitor_cf_action_mode: clean
+  counterfactual_action_mode: farthest
+  min_counterfactual_action_delta: 0.05
+  min_counterfactual_valid_frac_for_alarm: 0.5
+  lambda_v: 0.0
+  use_counterfactual_action: true
+
+timestep:
+  coupled: true
+
+debug:
+  grad_probe: true
