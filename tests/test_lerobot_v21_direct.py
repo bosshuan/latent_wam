@@ -4,6 +4,8 @@ import numpy as np
 import torch
 
 from data.lerobot_v21_direct import (
+    DirectLeRobotV21Dataset,
+    _EpisodeInfo,
     _clamped_offset_indices,
     _read_tasks,
     _value_to_tensor,
@@ -44,3 +46,15 @@ def test_value_to_tensor_copies_readonly_numpy_array():
     assert torch.equal(tensor, torch.arange(4, dtype=torch.float32))
     tensor[0] = 99.0
     assert float(arr[0]) == 0.0
+
+
+def test_episode_ranges_are_global_half_open_intervals(tmp_path):
+    dataset = DirectLeRobotV21Dataset.__new__(DirectLeRobotV21Dataset)
+    dataset._episodes = [
+        _EpisodeInfo(3, tmp_path / "episode_3.parquet", 100),
+        _EpisodeInfo(7, tmp_path / "episode_7.parquet", 60),
+    ]
+    assert dataset.episode_ranges() == [
+        {"episode": 3, "start": 0, "stop": 100, "length": 100},
+        {"episode": 7, "start": 100, "stop": 160, "length": 60},
+    ]

@@ -161,6 +161,15 @@ class RobotTrajectoryDataset(Dataset):
     def __len__(self) -> int:
         return len(self._ds)
 
+    def episode_ranges(self) -> list[dict[str, int]]:
+        """Expose backend episode boundaries for balanced offline sampling."""
+        method = getattr(self._ds, "episode_ranges", None)
+        if not callable(method):
+            raise NotImplementedError(
+                f"backend {type(self._ds).__name__} does not expose episode ranges"
+            )
+        return list(method())
+
     def __getitem__(self, idx: int) -> TrajectorySample:
         item = self._ds[idx]
         b = self.binding

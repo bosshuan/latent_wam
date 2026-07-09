@@ -77,6 +77,23 @@ class DirectLeRobotV21Dataset(Dataset):
     def __len__(self) -> int:
         return self._cum_lengths[-1]
 
+    def episode_ranges(self) -> list[dict[str, int]]:
+        """Return global half-open index ranges without loading episode tables."""
+        ranges = []
+        start = 0
+        for episode in self._episodes:
+            stop = start + episode.length
+            ranges.append(
+                {
+                    "episode": episode.index,
+                    "start": start,
+                    "stop": stop,
+                    "length": episode.length,
+                }
+            )
+            start = stop
+        return ranges
+
     def __getitem__(self, idx: int) -> dict[str, Any]:
         ep, local_idx = self._locate(idx)
         table = self._load_table(ep.parquet_path)

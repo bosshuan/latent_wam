@@ -658,6 +658,20 @@ Interpret the result as:
   provide a reliable action-to-latent supervision signal; expand or redesign
   the diagnostic data before scaling.
 
+Before expanding VJ-RAE training or the latent cache, inspect the
+episode-balanced sampling budget without decoding video or loading V-JEPA:
+
+```bash
+bash scripts/plan_interndata_a1_dual_arm_broad.sh
+```
+
+The broad plan reserves 64 frames at each episode boundary, samples at most 32
+evenly spaced windows per episode, and caps each dataset at 64 episodes / 2048
+windows. The command reads parquet metadata only and prints each dataset's
+available/selected episode count, skipped short episodes, and total sample
+count. Use this report to set the actual broad VJ-RAE and cache budget before
+launching expensive encoding.
+
 Real robot training should replace the server hooks in:
 
 ```text

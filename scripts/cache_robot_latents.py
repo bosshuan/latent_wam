@@ -68,6 +68,69 @@ def _subset(ds, start_index: int, max_samples: int):
     return Subset(ds, list(range(start, end)))
 
 
+def _evenly_spaced_indices(start: int, stop: int, count: int) -> list[int]:
+    """Select up to ``count`` centered, evenly spaced indices from [start, stop)."""
+    span = int(stop) - int(start)
+    if span <= 0 or count <= 0:
+        return []
+    count = min(int(count), span)
+    return [
+        int(start) + min(span - 1, int((slot + 0.5) * span / count))
+        for slot in range(count)
+    ]
+
+
+def _episode_balanced_subset(ds, dcfg: dict):
+    ranges = ds.episode_ranges()
+    margin = int(dcfg.get("episode_margin_frames", 64))
+    samples_per_episode = int(dcfg.get("samples_per_episode", 32))
+    episode_stride = int(dcfg.get("episode_stride", 1))
+    max_episodes = int(dcfg.get("max_episodes_per_dataset", 0))
+    max_samples = int(dcfg.get("max_samples_per_dataset", 0))
+    if margin < 0:
+        raise ValueError("episode_margin_frames must be >= 0")
+    if samples_per_episode <= 0 or episode_stride <= 0:
+        raise ValueError("samples_per_episode and episode_stride must be positive")
+
+    eligible = []
+    skipped_short = 0
+    for record in ranges[::episode_stride]:
+        start = int(record["start"]) + margin
+        stop = int(record["stop"]) - margin
+        indices = _evenly_spaced_indices(start, stop, samples_per_episode)
+        if not indices:
+            skipped_short += 1
+            continue
+        eligible.append((int(record["episode"]), indices))
+        if max_episodes > 0 and len(eligible) >= max_episodes:
+            break
+    if not eligible:
+        raise ValueError(
+            "episode-balanced sampling found no episode longer than "
+            f"2*margin={2 * margin} frames"
+        )
+
+    # Round-robin keeps every selected episode represented if a global cap is
+    # lower than episodes*samples_per_episode.
+    selected = []
+    for slot in range(samples_per_episode):
+        for _episode, indices in eligible:
+            if slot < len(indices):
+                selected.append(indices[slot])
+                if max_samples > 0 and len(selected) >= max_samples:
+                    break
+        if max_samples > 0 and len(selected) >= max_samples:
+            break
+    plan = {
+        "available_episodes": len(ranges),
+        "selected_episodes": len(eligible),
+        "skipped_short_episodes": skipped_short,
+        "samples": len(selected),
+        "episode_ids": [episode for episode, _indices in eligible],
+    }
+    return Subset(ds, selected), plan
+
+
 def _build_dataset(rec: dict, cfg: dict):
     temporal = cfg.get("temporal", {})
     binding_cfg = cfg.get("binding", {})
@@ -111,11 +174,27 @@ def _build_loader(cfg: dict) -> DataLoader:
     print(f"[{log_prefix}] selected {len(records)} dataset(s)")
     for rec in records:
         ds = _build_dataset(rec, cfg)
-        sub = _subset(ds, start_index=start_index, max_samples=max_samples)
+        sampling_mode = str(dcfg.get("sampling_mode", "contiguous"))
+        if sampling_mode == "episode_balanced":
+            sub, plan = _episode_balanced_subset(ds, dcfg)
+            sampling_summary = (
+                f"episodes={plan['selected_episodes']}/"
+                f"{plan['available_episodes']} "
+                f"skipped_short={plan['skipped_short_episodes']}"
+            )
+        elif sampling_mode == "contiguous":
+            sub = _subset(ds, start_index=start_index, max_samples=max_samples)
+            sampling_summary = f"start_index={start_index}"
+        else:
+            raise ValueError(
+                f"unknown data.sampling_mode={sampling_mode!r}; "
+                "expected 'contiguous' or 'episode_balanced'"
+            )
         datasets.append(sub)
         print(
             f"[{log_prefix}] dataset "
             f"id={rec['dataset_id']} len={len(ds)} subset_len={len(sub)} "
+            f"sampling={sampling_mode} {sampling_summary} "
             f"action_dim={rec['selected_action_dim']} "
             f"state_dim={rec['selected_state_dim']}",
             flush=True,
@@ -278,6 +357,7 @@ def _write_manifest_record(f, record: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
+    parser.add_argument("--plan-only", action="store_true")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -290,6 +370,14 @@ def main() -> None:
     device_name = str(cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
     device = torch.device(device_name)
     loader = _build_loader(cfg)
+    if args.plan_only:
+        print(
+            f"[cache-plan] total_samples={len(loader.dataset)} "
+            f"batches={len(loader)} batch_size={loader.batch_size}",
+            flush=True,
+        )
+        print("[cache-plan] ok", flush=True)
+        return
     encoder = _build_encoder(cfg, device)
     codec, loaded_vj_rae = _build_codec(encoder, cfg, device)
     cache = _build_cache(cfg)
