@@ -1,0 +1,53 @@
+{
+  "best_lag": -2,
+  "config": "configs/data/interndata_a1_dual_arm_unified_cached_wan_real_fsdp_pilot.yaml",
+  "current_lag": 0,
+  "results": [
+    {
+      "lag": -2,
+      "train_mse": 0.021679148077964783,
+      "train_pairs": 896,
+      "train_r2": 0.978320849337679,
+      "val_mse": 0.03409470617771149,
+      "val_pairs": 128,
+      "val_r2": 0.966121855111522
+    },
+    {
+      "lag": -1,
+      "train_mse": 0.03520481288433075,
+      "train_pairs": 1344,
+      "train_r2": 0.9647951871156693,
+      "val_mse": 0.059302255511283875,
+      "val_pairs": 192,
+      "val_r2": 0.9423810866557281
+    },
+    {
+      "lag": 0,
+      "train_mse": 0.05005674809217453,
+      "train_pairs": 1792,
+      "train_r2": 0.9499432519078255,
+      "val_mse": 0.07147511839866638,
+      "val_pairs": 256,
+      "val_r2": 0.9306892319188232
+    },
+    {
+      "lag": 1,
+      "train_mse": 0.03445550054311752,
+      "train_pairs": 1344,
+      "train_r2": 0.9655444994568825,
+      "val_mse": 0.05427815392613411,
+      "val_pairs": 192,
+      "val_r2": 0.947570664941661
+    },
+    {
+      "lag": 2,
+      "train_mse": 0.0239971075206995,
+      "train_pairs": 896,
+      "train_r2": 0.976002889618622,
+      "val_mse": 0.048100050538778305,
+      "val_pairs": 128,
+      "val_r2": 0.9537154491136315
+    }
+  ],
+  "ridge": 0.01
+}

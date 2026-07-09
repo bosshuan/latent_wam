@@ -1,0 +1,22 @@
+{
+  "S_a": 0.8767095878409842,
+  "S_a_cos": 0.0020104815673632833,
+  "a_fm": 0.61579270362854,
+  "batch_alarm_count": 9,
+  "cf": 1.2942658960819244,
+  "cf_action_delta": 5.049356148640315,
+  "cf_inconclusive": false,
+  "cf_valid_frac": 1.0,
+  "checkpoint": "checkpoints/interndata_a1/wan_fsdp_pilot/step_000128",
+  "clean": 0.7429269616802533,
+  "collapse": true,
+  "delta_cond": -0.018055583039919533,
+  "global_samples": 60,
+  "peak_cuda_alloc_gb": 33.01378107070923,
+  "peak_cuda_reserved_gb": 35.677734375,
+  "per_rank_batches": 10,
+  "step": 128,
+  "total": 4.750597095489502,
+  "world_size": 3,
+  "z_fm": 2.0976115504900616
+}
