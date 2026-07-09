@@ -625,6 +625,30 @@ Proceed to a larger pilot only if the aggregate has `S_a >= 0.01`,
 hinge baseline of 0.5. If this bounded phase still fails, stop extending the
 run and audit action/latent temporal alignment and the injection mechanism.
 
+If recovery makes `S_a` large while `delta_cond` remains negative, the injection
+path is active but the action supervision is not improving the true future.
+Before changing the model or loss again, run the cached action-lag sweep:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 \
+bash scripts/evaluate_interndata_a1_cached_action_lag.sh
+```
+
+This does not load Wan or re-encode video. It fits the same ridge
+inverse-dynamics probe for action offsets `[-2, -1, 0, 1, 2]` and writes
+`reports/interndata_a1/cached_action_lag.{json,md}`. Here `lag=0` is the
+alignment currently used by unified training, negative values use earlier
+action chunks, and positive values use later chunks. Interpret the result as:
+
+- `lag=0` clearly best: temporal alignment is supported; revise the
+  counterfactual objective so sensitivity cannot be gained by making the
+  permuted prediction arbitrarily bad.
+- another lag clearly best: fix the cached action slicing/alignment and rebuild
+  the relevant control cache before any more Wan training.
+- all held-out R2 values near zero: the present two-task/cache split does not
+  provide a reliable action-to-latent supervision signal; expand or redesign
+  the diagnostic data before scaling.
+
 Real robot training should replace the server hooks in:
 
 ```text
