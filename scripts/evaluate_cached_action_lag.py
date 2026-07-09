@@ -194,14 +194,21 @@ def _fit_ridge(
 ) -> dict[str, float]:
     eps = 1.0e-6
     x_mean = train_x.mean(dim=0)
-    x_std = train_x.std(dim=0, unbiased=False).clamp_min(eps)
+    x_std = train_x.std(dim=0, unbiased=False)
+    nonconstant = x_std[x_std > eps]
+    if nonconstant.numel() == 0:
+        raise ValueError("all latent-delta probe features are constant")
+    x_scale_floor = nonconstant.median() * 0.05
+    x_std = x_std.clamp_min(max(float(x_scale_floor), eps))
     y_mean = train_y.mean(dim=0)
-    y_std = train_y.std(dim=0, unbiased=False).clamp_min(eps)
 
     x_train = ((train_x - x_mean) / x_std).to(device)
-    y_train = ((train_y - y_mean) / y_std).to(device)
+    # Cached controls are already normalized by the global train-set control
+    # statistics. Re-standardizing on one episode makes near-constant action
+    # dimensions explode on the held-out episode.
+    y_train = (train_y - y_mean).to(device)
     x_val = ((val_x - x_mean) / x_std).to(device)
-    y_val = ((val_y - y_mean) / y_std).to(device)
+    y_val = (val_y - y_mean).to(device)
 
     n = x_train.shape[0]
     covariance = x_train.T @ x_train / n
@@ -217,11 +224,20 @@ def _fit_ridge(
 
     train_mse, train_r2 = metrics(x_train, y_train)
     val_mse, val_r2 = metrics(x_val, y_val)
+    train_action_std = train_y.std(dim=0, unbiased=False)
+    val_action_std = val_y.std(dim=0, unbiased=False)
     return {
         "train_mse": train_mse,
         "train_r2": train_r2,
         "val_mse": val_mse,
         "val_r2": val_r2,
+        "train_action_std_mean": float(train_action_std.mean()),
+        "train_action_std_min": float(train_action_std.min()),
+        "val_action_std_mean": float(val_action_std.mean()),
+        "val_action_std_min": float(val_action_std.min()),
+        "action_mean_shift_rms": float(
+            (val_y.mean(dim=0) - y_mean).square().mean().sqrt()
+        ),
     }
 
 
@@ -236,14 +252,15 @@ def _write_markdown(path: Path, report: dict) -> None:
         f"Train episodes: `{report['split']['train_episodes']}`",
         f"Holdout episode: `{report['split']['holdout_episode']}`",
         "",
-        "| lag | train pairs | val pairs | train R2 | val R2 |",
-        "| ---: | ---: | ---: | ---: | ---: |",
+        "| lag | train pairs | val pairs | train R2 | val R2 | action mean shift |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for record in report["results"]:
         lines.append(
             f"| {record['lag']} | {record['train_pairs']} | "
             f"{record['val_pairs']} | {record['train_r2']:.6f} | "
-            f"{record['val_r2']:.6f} |"
+            f"{record['val_r2']:.6f} | "
+            f"{record['action_mean_shift_rms']:.6f} |"
         )
     lines.extend(
         [
@@ -342,7 +359,8 @@ def main() -> None:
             f"train_pairs={record['train_pairs']} "
             f"val_pairs={record['val_pairs']} "
             f"train_r2={record['train_r2']:.6f} "
-            f"val_r2={record['val_r2']:.6f}",
+            f"val_r2={record['val_r2']:.6f} "
+            f"action_mean_shift={record['action_mean_shift_rms']:.6f}",
             flush=True,
         )
 

@@ -1,8 +1,11 @@
+import math
+
 import torch
 
 from scripts.evaluate_cached_action_lag import (
     _aligned_pairs,
     _episode_holdout_indices,
+    _fit_ridge,
 )
 
 
@@ -48,3 +51,26 @@ def test_episode_holdout_keeps_same_dataset_and_separates_episodes():
     assert metadata["dataset_id"] == "multi"
     assert metadata["train_episodes"] == [0]
     assert metadata["holdout_episode"] == 1
+
+
+def test_ridge_stays_finite_when_train_action_dimension_is_constant():
+    train_x = torch.arange(24, dtype=torch.float32).reshape(8, 3)
+    val_x = torch.arange(12, dtype=torch.float32).reshape(4, 3)
+    train_y = torch.stack(
+        [torch.linspace(0, 1, 8), torch.zeros(8)],
+        dim=1,
+    )
+    val_y = torch.stack(
+        [torch.linspace(0, 1, 4), torch.ones(4)],
+        dim=1,
+    )
+    result = _fit_ridge(
+        train_x,
+        train_y,
+        val_x,
+        val_y,
+        ridge=1.0e-2,
+        device=torch.device("cpu"),
+    )
+    assert math.isfinite(result["val_mse"])
+    assert result["val_mse"] < 10.0
