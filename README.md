@@ -452,7 +452,8 @@ If this step runs out of memory, do not lower the scientific sequence geometry
 yet; the next implementation step should be a true FSDP load/train smoke rather
 than a single-process real-5B forward.
 
-After the real-weight forward passes, run the 8-GPU FSDP backward smoke:
+After the real-weight forward passes, run the multi-GPU FSDP backward smoke.
+The server launcher currently defaults to the three available GPUs `4,5,6`:
 
 ```bash
 cd /mnt/sfs_turbo/fyy/latent_wam
@@ -460,10 +461,11 @@ bash scripts/smoke_interndata_a1_dual_arm_unified_cached_wan_real_fsdp_backward.
 ```
 
 This runs exactly one real cached latent-action optimization step. Rank 0 loads
-the official checkpoint; ranks 1-7 construct on the meta device, then FSDP
-synchronizes and shards the model. It uses bf16, full parameter/gradient/
+the official checkpoint; all other ranks construct on the meta device, then
+FSDP synchronizes and shards the model. It uses bf16, full parameter/gradient/
 optimizer sharding, per-Wan-block wrapping, and activation checkpointing. It
-does not create EMA weights or save a 5B checkpoint.
+does not create EMA weights or save a 5B checkpoint. To use a different set of
+GPUs, set `CUDA_VISIBLE_DEVICES`; the launcher derives `NPROC_PER_NODE` from it.
 
 Success prints nonzero gradient norms for the Wan backbone, latent adapter/head,
 and action encoder/bridge/head, then ends with:

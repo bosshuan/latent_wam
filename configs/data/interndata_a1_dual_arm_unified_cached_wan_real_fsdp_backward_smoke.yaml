@@ -68,6 +68,6 @@ optimizer:
 
 distributed:
   backend: nccl
-  required_world_size: 8
+  min_world_size: 2
   precision: bf16
   activation_checkpointing: true

@@ -229,10 +229,10 @@ def main() -> None:
     dcfg = cfg.get("distributed", {})
     ctx = init_distributed(backend=str(dcfg.get("backend", "nccl")))
     try:
-        required_world_size = int(dcfg.get("required_world_size", 8))
-        if not ctx.distributed or ctx.world_size != required_world_size:
+        min_world_size = int(dcfg.get("min_world_size", 2))
+        if not ctx.distributed or ctx.world_size < min_world_size:
             raise RuntimeError(
-                f"launch with torchrun world_size={required_world_size}; "
+                f"launch with torchrun world_size>={min_world_size}; "
                 f"got world_size={ctx.world_size}"
             )
         if ctx.device.type != "cuda":

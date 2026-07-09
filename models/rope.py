@@ -51,9 +51,17 @@ def rope_freqs_1d(max_seq_len: int, dim: int, theta: float = 10000.0) -> torch.T
     """Complex RoPE multipliers ``[max_seq_len, dim//2]`` (Wan ``rope_params_polar``)."""
     if dim % 2 != 0:
         raise ValueError("rope dim must be even")
+    # Rope3D is intentionally not an nn.Module, so these plain tensors are not
+    # visited by FSDP's meta-device param_init_fn. Keep the tiny immutable tables
+    # on CPU even when the parent model is constructed under torch.device("meta");
+    # Rope3D.to() moves them to the rank-local CUDA device before use.
     freqs = torch.outer(
-        torch.arange(max_seq_len, dtype=torch.float64),
-        1.0 / torch.pow(theta, torch.arange(0, dim, 2, dtype=torch.float64) / dim),
+        torch.arange(max_seq_len, dtype=torch.float64, device="cpu"),
+        1.0
+        / torch.pow(
+            theta,
+            torch.arange(0, dim, 2, dtype=torch.float64, device="cpu") / dim,
+        ),
     )
     return torch.polar(torch.ones_like(freqs), freqs)  # complex128 [L, dim/2]
 

@@ -18,6 +18,16 @@ from models.latent_tokenizer import LatentActionTokenizer
 from models.rope import Rope3D, apply_rope
 
 
+def test_rope_tables_are_materialized_when_parent_is_built_on_meta():
+    """FSDP meta construction must not leave unregistered RoPE tensors on meta."""
+    with torch.device("meta"):
+        rope = Rope3D(head_dim=12)
+
+    tables = (rope.freqs_t, rope.freqs_h, rope.freqs_w, rope.freqs_1d)
+    assert all(not table.is_meta for table in tables)
+    assert all(table.device.type == "cpu" for table in tables)
+
+
 def test_freq_split_sums_to_head_dim():
     rope = Rope3D(head_dim=12)  # d//6=2 -> t=4, h=4, w=4
     assert (rope.dim_t, rope.dim_h, rope.dim_w) == (4, 4, 4)

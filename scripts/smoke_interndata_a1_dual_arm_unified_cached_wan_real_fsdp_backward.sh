@@ -2,8 +2,12 @@
 set -euo pipefail
 
 PROJECT_ROOT="${PROJECT_ROOT:-/mnt/sfs_turbo/fyy/latent_wam}"
-NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
 CONFIG="${CONFIG:-configs/data/interndata_a1_dual_arm_unified_cached_wan_real_fsdp_backward_smoke.yaml}"
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-4,5,6}"
+if [[ -z "${NPROC_PER_NODE:-}" ]]; then
+  IFS=',' read -r -a GPU_IDS <<< "${CUDA_VISIBLE_DEVICES}"
+  NPROC_PER_NODE="${#GPU_IDS[@]}"
+fi
 
 cd "${PROJECT_ROOT}"
 export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH:-}"
