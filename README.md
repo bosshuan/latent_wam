@@ -538,6 +538,31 @@ for the current single-node debug server. Confirm the production topology
 before launch; if all 32 GPUs share one high-bandwidth fabric, benchmark
 `FULL_SHARD` against HSDP instead of assuming the 4x8 layout.
 
+After the checkpoint round-trip passes, run the first streaming pilot:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/train_interndata_a1_dual_arm_wan_fsdp_pilot.sh
+```
+
+This uses `DistributedSampler` so ranks do not train on overlapping manifest
+rows, streams 32 optimizer steps, validates every 8 steps with fixed noise, and
+writes metrics to `reports/interndata_a1/wan_fsdp_pilot_32.jsonl`. It accepts
+only a conclusive, non-collapsed final validation whose total loss is no more
+than 1.10x its initial value. On success it saves exactly one full model+Adam
+DCP checkpoint at `checkpoints/interndata_a1/wan_fsdp_pilot/step_000032`.
+
+Continue from a saved pilot checkpoint with:
+
+```bash
+RESUME_FROM=checkpoints/interndata_a1/wan_fsdp_pilot/step_000032 \
+bash scripts/train_interndata_a1_dual_arm_wan_fsdp_pilot.sh
+```
+
+Set `pilot.total_steps` above the saved step before resuming. The trainer restores
+model, Adam, completed step, and reconstructs the distributed sampler epoch and
+batch offset.
+
 Real robot training should replace the server hooks in:
 
 ```text

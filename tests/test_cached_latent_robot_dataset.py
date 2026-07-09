@@ -10,6 +10,7 @@ from data.cached_latent_robot_dataset import (
     collate_cached_latent_robot,
     split_future_actions,
 )
+from scripts.train_cached_unified_flow import _build_loader
 
 
 def test_split_future_actions_drops_history_chunks():
@@ -101,3 +102,40 @@ def test_cached_latent_dataset_supports_modulo_split(tmp_path):
     )
 
     assert [entry["sample_index"] for entry in ds.entries] == [1, 3, 5, 7]
+
+
+def test_cached_loader_distributed_sampler_partitions_without_overlap(tmp_path):
+    schema_path = tmp_path / "schema.json"
+    manifest_path = tmp_path / "manifest.jsonl"
+    schema_path.write_text(json.dumps([]))
+    rows = [
+        {
+            "dataset_id": "ds",
+            "sample_index": i,
+            "cache_path": str(tmp_path / f"{i}.pt"),
+        }
+        for i in range(8)
+    ]
+    manifest_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    cfg = {
+        "seed": 5,
+        "schema_report": str(schema_path),
+        "manifest_path": str(manifest_path),
+        "data": {
+            "batch_size": 2,
+            "train_max_items": 8,
+            "train_shuffle": False,
+            "train_sampler_drop_last": True,
+        },
+    }
+
+    rank0 = _build_loader(
+        cfg, "train", distributed_rank=0, distributed_world_size=2
+    )
+    rank1 = _build_loader(
+        cfg, "train", distributed_rank=1, distributed_world_size=2
+    )
+    indices0 = set(iter(rank0.sampler))
+    indices1 = set(iter(rank1.sampler))
+    assert indices0.isdisjoint(indices1)
+    assert indices0 | indices1 == set(range(8))

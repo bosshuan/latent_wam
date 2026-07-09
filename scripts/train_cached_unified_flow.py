@@ -43,7 +43,13 @@ def _cfg_get(cfg: dict, *path, default=None):
     return cur
 
 
-def _build_loader(cfg: dict, split: str) -> DataLoader:
+def _build_loader(
+    cfg: dict,
+    split: str,
+    *,
+    distributed_rank: int | None = None,
+    distributed_world_size: int | None = None,
+) -> DataLoader:
     dcfg = cfg.get("data", {})
     history_chunks = int(_cfg_get(cfg, "temporal", "history_chunks", default=4))
     future_chunks = int(_cfg_get(cfg, "temporal", "future_chunks", default=4))
@@ -59,10 +65,28 @@ def _build_loader(cfg: dict, split: str) -> DataLoader:
         max_items=int(dcfg.get(f"{split}_max_items", dcfg.get("max_items", 16))),
         control_stats_path=cfg.get("control_stats_path"),
     )
+    sampler = None
+    shuffle = bool(dcfg.get(f"{split}_shuffle", dcfg.get("shuffle", split == "train")))
+    if distributed_rank is not None or distributed_world_size is not None:
+        if distributed_rank is None or distributed_world_size is None:
+            raise ValueError("distributed_rank and distributed_world_size must be set together")
+        from torch.utils.data.distributed import DistributedSampler
+
+        sampler = DistributedSampler(
+            dataset,
+            num_replicas=int(distributed_world_size),
+            rank=int(distributed_rank),
+            shuffle=shuffle,
+            seed=int(cfg.get("seed", 0)) + (10000 if split == "val" else 0),
+            drop_last=bool(dcfg.get(f"{split}_sampler_drop_last", True)),
+        )
+        shuffle = False
+
     return DataLoader(
         dataset,
         batch_size=int(dcfg.get("batch_size", 2)),
-        shuffle=bool(dcfg.get(f"{split}_shuffle", dcfg.get("shuffle", split == "train"))),
+        shuffle=shuffle,
+        sampler=sampler,
         num_workers=int(dcfg.get("num_workers", 0)),
         collate_fn=collate_cached_latent_robot,
         drop_last=bool(
