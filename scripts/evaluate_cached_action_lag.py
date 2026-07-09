@@ -8,8 +8,12 @@ from pathlib import Path
 
 import torch
 import yaml
+from torch.utils.data import DataLoader, Subset
 
-from scripts.train_cached_unified_flow import _build_loader
+from data.cached_latent_robot_dataset import (
+    CachedLatentRobotDataset,
+    collate_cached_latent_robot,
+)
 
 
 def _aligned_pairs(
@@ -88,6 +92,98 @@ def _collect(
     return result
 
 
+def _episode_holdout_indices(
+    entries: list[dict],
+    dataset_id: str | None = None,
+    holdout_episode: int | None = None,
+) -> tuple[list[int], list[int], dict]:
+    groups: dict[str, dict[int, list[int]]] = {}
+    for index, entry in enumerate(entries):
+        ds = str(entry["dataset_id"])
+        episode = int(entry["episode"])
+        groups.setdefault(ds, {}).setdefault(episode, []).append(index)
+
+    eligible = {
+        ds: episodes for ds, episodes in groups.items() if len(episodes) >= 2
+    }
+    if dataset_id is None:
+        if not eligible:
+            raise ValueError("lag sweep needs one dataset with at least two episodes")
+        dataset_id = max(
+            eligible,
+            key=lambda ds: sum(len(indices) for indices in eligible[ds].values()),
+        )
+    if dataset_id not in eligible:
+        available = {ds: sorted(episodes) for ds, episodes in groups.items()}
+        raise ValueError(
+            f"dataset_id={dataset_id!r} lacks two episodes; available={available}"
+        )
+
+    episodes = eligible[dataset_id]
+    if holdout_episode is None:
+        holdout_episode = max(episodes)
+    if holdout_episode not in episodes:
+        raise ValueError(
+            f"holdout_episode={holdout_episode} absent from "
+            f"dataset_id={dataset_id!r}; episodes={sorted(episodes)}"
+        )
+
+    val_indices = list(episodes[holdout_episode])
+    train_indices = [
+        index
+        for episode, indices in episodes.items()
+        if episode != holdout_episode
+        for index in indices
+    ]
+    if not train_indices or not val_indices:
+        raise ValueError("episode holdout produced an empty train or val split")
+    metadata = {
+        "mode": "same_dataset_episode_holdout",
+        "dataset_id": dataset_id,
+        "train_episodes": sorted(
+            episode for episode in episodes if episode != holdout_episode
+        ),
+        "holdout_episode": int(holdout_episode),
+        "train_windows": len(train_indices),
+        "val_windows": len(val_indices),
+    }
+    return train_indices, val_indices, metadata
+
+
+def _build_episode_holdout_loaders(
+    cfg: dict,
+    dataset_id: str | None,
+    holdout_episode: int | None,
+):
+    temporal = cfg["temporal"]
+    dataset = CachedLatentRobotDataset(
+        schema_report=cfg["schema_report"],
+        manifest_path=cfg["manifest_path"],
+        history_chunks=int(temporal["history_chunks"]),
+        future_chunks=int(temporal["future_chunks"]),
+        tubelet=int(temporal.get("tubelet", 2)),
+        control_stats_path=cfg.get("control_stats_path"),
+    )
+    train_indices, val_indices, metadata = _episode_holdout_indices(
+        dataset.entries,
+        dataset_id=dataset_id,
+        holdout_episode=holdout_episode,
+    )
+    batch_size = int(cfg.get("data", {}).get("batch_size", 2))
+
+    def loader(indices: list[int]) -> DataLoader:
+        return DataLoader(
+            Subset(dataset, indices),
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=int(cfg.get("data", {}).get("num_workers", 0)),
+            collate_fn=collate_cached_latent_robot,
+            drop_last=False,
+        )
+
+    return loader(train_indices), loader(val_indices), metadata
+
+
 def _fit_ridge(
     train_x: torch.Tensor,
     train_y: torch.Tensor,
@@ -135,6 +231,10 @@ def _write_markdown(path: Path, report: dict) -> None:
         "",
         f"Current alignment: `lag=0`",
         f"Best held-out lag: `{report['best_lag']}`",
+        f"Split: `{report['split']['mode']}`",
+        f"Dataset: `{report['split']['dataset_id']}`",
+        f"Train episodes: `{report['split']['train_episodes']}`",
+        f"Holdout episode: `{report['split']['holdout_episode']}`",
         "",
         "| lag | train pairs | val pairs | train R2 | val R2 |",
         "| ---: | ---: | ---: | ---: | ---: |",
@@ -150,11 +250,11 @@ def _write_markdown(path: Path, report: dict) -> None:
             "",
             "`lag=0` pairs each future latent transition with the action chunk "
             "currently used by the unified trainer. Negative lag uses an earlier "
-            "action chunk; positive lag uses a later action chunk.",
+            "action chunk.",
             "",
-            "Use the relative lag ranking as an alignment diagnostic. The manifest "
-            "contains overlapping windows, so these R2 values are not a standalone "
-            "generalization benchmark.",
+            "Train and validation windows come from different episodes of the same "
+            "dataset, so no overlapping video window crosses the split. Use the "
+            "relative held-out lag ranking as the alignment diagnostic.",
             "",
         ]
     )
@@ -168,6 +268,8 @@ def main() -> None:
     parser.add_argument("--output-md", required=True)
     parser.add_argument("--ridge", type=float, default=1.0e-2)
     parser.add_argument("--lags", type=int, nargs="+", default=[-2, -1, 0])
+    parser.add_argument("--dataset-id", default=None)
+    parser.add_argument("--holdout-episode", type=int, default=None)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
 
@@ -189,14 +291,28 @@ def main() -> None:
                 f"lag={lag} exceeds available history_chunks={history_chunks}"
             )
 
+    train_loader, val_loader, split_metadata = _build_episode_holdout_loaders(
+        cfg,
+        dataset_id=args.dataset_id,
+        holdout_episode=args.holdout_episode,
+    )
+    print(
+        f"[action-lag] split={split_metadata['mode']} "
+        f"dataset={split_metadata['dataset_id']} "
+        f"train_episodes={split_metadata['train_episodes']} "
+        f"holdout_episode={split_metadata['holdout_episode']} "
+        f"train_windows={split_metadata['train_windows']} "
+        f"val_windows={split_metadata['val_windows']}",
+        flush=True,
+    )
     train = _collect(
-        _build_loader(cfg, "train"),
+        train_loader,
         history_chunks,
         future_chunks,
         args.lags,
     )
     val = _collect(
-        _build_loader(cfg, "val"),
+        val_loader,
         history_chunks,
         future_chunks,
         args.lags,
@@ -236,6 +352,7 @@ def main() -> None:
         "ridge": args.ridge,
         "current_lag": 0,
         "best_lag": int(best["lag"]),
+        "split": split_metadata,
         "results": results,
     }
     json_path = Path(args.output_json)

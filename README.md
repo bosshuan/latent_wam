@@ -641,7 +641,10 @@ alignment currently used by unified training, negative values use earlier
 action chunks. Every lag is evaluated on the same four future transitions and
 therefore has the same pair count. Positive lags are excluded because the cache
 does not contain actions beyond the final target chunk, and future actions are
-not causal candidates for an earlier transition. Interpret the result as:
+not causal candidates for an earlier transition. The script automatically
+selects the task subset with at least two episodes, fits on episode 0, and
+validates on episode 1. This same-task episode holdout prevents overlapping
+sliding windows from crossing the split. Interpret the result as:
 
 - `lag=0` clearly best: temporal alignment is supported; revise the
   counterfactual objective so sensitivity cannot be gained by making the
