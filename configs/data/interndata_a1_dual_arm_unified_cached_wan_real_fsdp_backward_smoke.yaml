@@ -67,7 +67,7 @@ optimizer:
   max_grad_norm: 1.0
 
 smoke:
-  max_initial_action_fm: 10.0
+  max_initial_action_fm: 2.0
 
 distributed:
   backend: nccl

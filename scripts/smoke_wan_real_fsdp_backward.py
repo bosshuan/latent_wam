@@ -328,7 +328,7 @@ def main() -> None:
             for name in ("z_fm", "a_fm", "cf")
         }
         max_action_fm = float(
-            _cfg_get(cfg, "smoke", "max_initial_action_fm", default=10.0)
+            _cfg_get(cfg, "smoke", "max_initial_action_fm", default=2.0)
         )
         if metric_means["a_fm"] > max_action_fm:
             raise RuntimeError(

@@ -121,8 +121,12 @@ def _masked_mean(per_elem: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.
     mask = mask.to(per_elem.dtype)
     while mask.ndim < per_elem.ndim:
         mask = mask.unsqueeze(-1)
-    denom = mask.sum().clamp_min(1.0)
-    return (per_elem * mask).sum() / denom
+    # Count every valid scalar, including trailing feature/channel dimensions.
+    # Dividing by the pre-broadcast mask count makes a masked action MSE scale
+    # linearly with action_dim and disagree with the unmasked MSE.
+    expanded_mask = mask.expand_as(per_elem)
+    denom = expanded_mask.sum().clamp_min(1.0)
+    return (per_elem * expanded_mask).sum() / denom
 
 
 def flow_matching_loss(

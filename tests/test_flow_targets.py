@@ -86,6 +86,18 @@ def test_flow_matching_loss_zero_at_target():
     assert flow_matching_loss(v, v).item() == 0.0
 
 
+def test_masked_flow_loss_matches_unmasked_mean_over_channels():
+    """An all-valid step mask must not multiply MSE by the action dimension."""
+    pred = torch.zeros(2, 3, 4, 5)
+    target = torch.ones_like(pred)
+    mask = torch.ones(2, 3, 4, dtype=torch.bool)
+
+    unmasked = flow_matching_loss(pred, target)
+    masked = flow_matching_loss(pred, target, mask)
+    assert unmasked.item() == 1.0
+    assert masked.item() == 1.0
+
+
 def test_clean_target_loss_zero_when_equal():
     r = torch.randn(2, 4, 8)
     terms = clean_target_loss(r, r)
