@@ -74,4 +74,5 @@ distributed:
   backend: nccl
   min_world_size: 2
   precision: bf16
+  sharding_strategy: full_shard
   activation_checkpointing: true

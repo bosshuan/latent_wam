@@ -511,6 +511,31 @@ Validation `S_a`, `delta_cond`, and `collapse` are diagnostic at this short
 horizon; they are not used to claim generalization. This run intentionally does
 not save a 5B checkpoint.
 
+Before a longer pilot, verify the server's DCP API and run a full model+Adam
+checkpoint round-trip:
+
+```bash
+bash scripts/inspect_distributed_runtime.sh
+
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/smoke_interndata_a1_wan_fsdp_checkpoint_roundtrip.sh
+```
+
+The second command writes a real sharded checkpoint under
+`checkpoints/interndata_a1/wan_fsdp_dcp_smoke/step_000001`. It trains one step,
+saves, deliberately trains another step, restores, and verifies both fixed-noise
+model metrics and Adam step state return to the saved point. Budget roughly
+`60 GB` of shared storage for this model+optimizer checkpoint.
+
+For full 5B finetuning, use FSDP rather than plain DDP. With fp32 master
+parameters/gradients and Adam moments, DDP approaches 80 GB per rank before
+activations and communication buckets. For the expected 4-node x 8-GPU H800
+topology, use `configs/distributed/h800_32gpu_hsdp.yaml`: `HYBRID_SHARD` shards
+within each 8-GPU node and replicates across the four nodes. Keep `FULL_SHARD`
+for the current single-node debug server. Confirm the production topology
+before launch; if all 32 GPUs share one high-bandwidth fabric, benchmark
+`FULL_SHARD` against HSDP instead of assuming the 4x8 layout.
+
 Real robot training should replace the server hooks in:
 
 ```text

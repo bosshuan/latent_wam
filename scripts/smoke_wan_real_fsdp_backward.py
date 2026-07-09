@@ -14,6 +14,7 @@ import argparse
 import dataclasses
 import gc
 import math
+import os
 from functools import partial
 
 import torch
@@ -118,6 +119,24 @@ def _wrap_fsdp(model, cfg: dict, device: torch.device):
         buffer_dtype=torch.bfloat16,
         cast_forward_inputs=True,
     )
+    strategy_name = str(dcfg.get("sharding_strategy", "full_shard")).lower()
+    strategies = {
+        "full_shard": ShardingStrategy.FULL_SHARD,
+        "hybrid_shard": ShardingStrategy.HYBRID_SHARD,
+    }
+    if strategy_name not in strategies:
+        raise ValueError(
+            f"unknown distributed.sharding_strategy={strategy_name!r}; "
+            f"expected one of {sorted(strategies)}"
+        )
+    if strategy_name == "hybrid_shard":
+        world_size = dist.get_world_size()
+        local_world_size = int(os.environ.get("LOCAL_WORLD_SIZE", world_size))
+        if world_size <= local_world_size:
+            raise RuntimeError(
+                "HYBRID_SHARD requires multiple nodes; use FULL_SHARD for a "
+                f"single node (world_size={world_size}, local_world_size={local_world_size})"
+            )
     auto_wrap = partial(
         transformer_auto_wrap_policy,
         transformer_layer_cls={WanAttentionBlock},
@@ -125,7 +144,7 @@ def _wrap_fsdp(model, cfg: dict, device: torch.device):
     fsdp_model = FSDP(
         model,
         auto_wrap_policy=auto_wrap,
-        sharding_strategy=ShardingStrategy.FULL_SHARD,
+        sharding_strategy=strategies[strategy_name],
         mixed_precision=mixed_precision,
         backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
         param_init_fn=partial(_materialize_meta, device=device),
@@ -242,9 +261,10 @@ def main() -> None:
             torch.backends.cuda.matmul.allow_tf32 = True
         torch.cuda.reset_peak_memory_stats(ctx.device)
         if ctx.is_main:
+            sharding = str(dcfg.get("sharding_strategy", "full_shard")).upper()
             print(
                 f"[wan-fsdp] world_size={ctx.world_size} precision=bf16 "
-                "sharding=FULL_SHARD activation_checkpointing="
+                f"sharding={sharding} activation_checkpointing="
                 f"{bool(dcfg.get('activation_checkpointing', True))}",
                 flush=True,
             )

@@ -1,0 +1,14 @@
+# Production topology recommendation: 4 nodes x 8 H800-80GB.
+# Merge this distributed block into the eventual streaming Stage-A config.
+
+distributed:
+  backend: nccl
+  min_world_size: 32
+  precision: bf16
+  sharding_strategy: hybrid_shard
+  activation_checkpointing: true
+  local_world_size: 8
+
+environment:
+  TORCH_NCCL_ASYNC_ERROR_HANDLING: 1
+  NCCL_CROSS_NIC: 1
