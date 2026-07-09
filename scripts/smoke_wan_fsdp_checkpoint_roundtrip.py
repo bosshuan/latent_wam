@@ -94,6 +94,7 @@ def main() -> None:
         optimizer = _optimizer(model, cfg)
         max_grad_norm = float(cfg["optimizer"].get("max_grad_norm", 1.0))
         scfg = cfg["checkpoint_smoke"]
+        checkpoint_backend = str(scfg.get("backend", "legacy_fsdp1"))
         eval_seed = int(scfg.get("eval_seed", 1901))
 
         first_grad = _train_one(
@@ -112,6 +113,7 @@ def main() -> None:
                 "world_size": ctx.world_size,
                 "sharding_strategy": "full_shard",
             },
+            backend=checkpoint_backend,
         )
         saved_step_range = _optimizer_step_range(optimizer, ctx.device)
 
@@ -121,7 +123,12 @@ def main() -> None:
         perturbed = _evaluate(
             model, inp, scheduler, weights, ctx, eval_seed, monitors=False
         )
-        loaded_step = load_fsdp_checkpoint(model, optimizer, checkpoint_dir)
+        loaded_step = load_fsdp_checkpoint(
+            model,
+            optimizer,
+            checkpoint_dir,
+            backend=checkpoint_backend,
+        )
         restored_step_range = _optimizer_step_range(optimizer, ctx.device)
         restored = _evaluate(
             model, inp, scheduler, weights, ctx, eval_seed, monitors=False
@@ -159,6 +166,7 @@ def main() -> None:
             )
             print(
                 f"[dcp-smoke] loaded_step={loaded_step} "
+                f"backend={checkpoint_backend} "
                 f"saved_optimizer_steps={saved_step_range} "
                 f"restored_optimizer_steps={restored_step_range} "
                 f"checkpoint_gb={size_bytes / (1024**3):.2f}",

@@ -522,10 +522,12 @@ bash scripts/smoke_interndata_a1_wan_fsdp_checkpoint_roundtrip.sh
 ```
 
 The second command writes a real sharded checkpoint under
-`checkpoints/interndata_a1/wan_fsdp_dcp_smoke/step_000001`. It trains one step,
-saves, deliberately trains another step, restores, and verifies both fixed-noise
-model metrics and Adam step state return to the saved point. Budget roughly
-`60 GB` of shared storage for this model+optimizer checkpoint.
+`checkpoints/interndata_a1/wan_fsdp_dcp_smoke/step_000001_legacy`. It uses the
+FSDP1-compatible `SHARDED_STATE_DICT` backend because the server's nested FSDP
+layout is not supported correctly by its newer `get_state_dict()` path. It
+trains one step, saves, deliberately trains another step, restores, and verifies
+both fixed-noise model metrics and Adam step state return to the saved point.
+Budget roughly `60 GB` of shared storage for this model+optimizer checkpoint.
 
 For full 5B finetuning, use FSDP rather than plain DDP. With fp32 master
 parameters/gradients and Adam moments, DDP approaches 80 GB per rank before

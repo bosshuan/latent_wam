@@ -23,6 +23,7 @@ def main() -> None:
         "dcp_load",
         "get_state_dict",
         "set_state_dict",
+        "legacy_optimizer_load",
         "full_shard",
         "hybrid_shard",
     )
