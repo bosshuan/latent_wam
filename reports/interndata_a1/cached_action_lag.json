@@ -1,34 +1,49 @@
 {
-  "best_lag": -2,
+  "best_lag": 0,
   "config": "configs/data/interndata_a1_dual_arm_unified_cached_wan_real_fsdp_pilot.yaml",
   "current_lag": 0,
   "results": [
     {
+      "action_mean_shift_rms": 1.0811084508895874,
       "lag": -2,
-      "train_mse": 0.02976279892027378,
+      "train_action_std_mean": 0.12820537388324738,
+      "train_action_std_min": 3.3249518764932873e-06,
+      "train_mse": 0.0020927602890878916,
       "train_pairs": 628,
-      "train_r2": 0.9702374458898584,
-      "val_mse": 3971893248.0,
+      "train_r2": 0.9713216713098207,
+      "val_action_std_mean": 0.24781063199043274,
+      "val_action_std_min": 1.3085613659313822e-07,
+      "val_mse": 1.3977285623550415,
       "val_pairs": 396,
-      "val_r2": 9.023396506657733e-07
+      "val_r2": -0.03302918949169831
     },
     {
+      "action_mean_shift_rms": 1.0923923254013062,
       "lag": -1,
-      "train_mse": 0.026982521638274193,
+      "train_action_std_mean": 0.12388189136981964,
+      "train_action_std_min": 3.3023434298229404e-06,
+      "train_mse": 0.0022716382518410683,
       "train_pairs": 628,
-      "train_r2": 0.9730180090848805,
-      "val_mse": 4011459840.0,
+      "train_r2": 0.9721692201526478,
+      "val_action_std_mean": 0.23373021185398102,
+      "val_action_std_min": 9.744935880462435e-08,
+      "val_mse": 1.384336233139038,
       "val_pairs": 396,
-      "val_r2": 0.0
+      "val_r2": -0.020393899772946256
     },
     {
+      "action_mean_shift_rms": 1.1203818321228027,
       "lag": 0,
-      "train_mse": 0.025369277223944664,
+      "train_action_std_mean": 0.12049464136362076,
+      "train_action_std_min": 3.269404714956181e-06,
+      "train_mse": 0.0026139519177377224,
       "train_pairs": 628,
-      "train_r2": 0.9746310554395797,
-      "val_mse": 4069001472.0,
+      "train_r2": 0.9699452600172205,
+      "val_action_std_mean": 0.22023238241672516,
+      "val_action_std_min": 1.589362454978982e-07,
+      "val_mse": 1.4025373458862305,
       "val_pairs": 396,
-      "val_r2": -5.662326052480182e-07
+      "val_r2": -0.014290614713251104
     }
   ],
   "ridge": 0.01,
