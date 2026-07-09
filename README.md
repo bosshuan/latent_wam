@@ -452,6 +452,31 @@ If this step runs out of memory, do not lower the scientific sequence geometry
 yet; the next implementation step should be a true FSDP load/train smoke rather
 than a single-process real-5B forward.
 
+After the real-weight forward passes, run the 8-GPU FSDP backward smoke:
+
+```bash
+cd /mnt/sfs_turbo/fyy/latent_wam
+bash scripts/smoke_interndata_a1_dual_arm_unified_cached_wan_real_fsdp_backward.sh
+```
+
+This runs exactly one real cached latent-action optimization step. Rank 0 loads
+the official checkpoint; ranks 1-7 construct on the meta device, then FSDP
+synchronizes and shards the model. It uses bf16, full parameter/gradient/
+optimizer sharding, per-Wan-block wrapping, and activation checkpointing. It
+does not create EMA weights or save a 5B checkpoint.
+
+Success prints nonzero gradient norms for the Wan backbone, latent adapter/head,
+and action encoder/bridge/head, then ends with:
+
+```text
+[wan-fsdp] total_grad_norm=... optimizer_update_max=...
+[wan-fsdp] peak_cuda_alloc_gb=... peak_cuda_reserved_gb=...
+[wan-fsdp] ok
+```
+
+Any non-finite loss/gradient, zero gradient in a required branch, missing
+optimizer update, wrong world size, or CUDA/FSDP failure stops the script.
+
 Real robot training should replace the server hooks in:
 
 ```text
