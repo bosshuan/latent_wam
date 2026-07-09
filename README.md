@@ -591,6 +591,40 @@ writes the aggregate result to
 `batch_alarm_count` remains a diagnostic because individual small batches may
 be action-ambiguous.
 
+If the step-64 aggregate has `S_a < 0.01` or `delta_cond <= 0`, do not scale the
+same recipe to the production cluster. Run the bounded action-conditioning
+recovery phase instead:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/train_interndata_a1_wan_fsdp_action_recovery.sh
+```
+
+This restores step 64 and trains through step 128. It keeps the robot data,
+joint latent/action flow losses, model, and optimizer rates unchanged, but uses
+clean actions for `L_cf` and raises `lambda_cf` from 1 to 10. This is a
+diagnostic curriculum, not the final long-run objective: it makes the
+action-to-latent gradient explicit without increasing the bridge scale or
+changing the architecture. Clean counterfactual training needs one additional
+gradient-carrying forward, so expect this phase to be slower than the preceding
+noisy-counterfactual pilot.
+
+Afterward, aggregate the step-128 checkpoint using the same recovery loss
+configuration:
+
+```bash
+CONFIG=configs/data/interndata_a1_dual_arm_unified_cached_wan_real_fsdp_action_recovery.yaml \
+CHECKPOINT=checkpoints/interndata_a1/wan_fsdp_pilot/step_000128 \
+OUTPUT=reports/interndata_a1/wan_fsdp_step128_action_recovery_eval.json \
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint.sh
+```
+
+Proceed to a larger pilot only if the aggregate has `S_a >= 0.01`,
+`delta_cond > 0`, and `collapse=False`, with `cf` decreasing from its weighted
+hinge baseline of 0.5. If this bounded phase still fails, stop extending the
+run and audit action/latent temporal alignment and the injection mechanism.
+
 Real robot training should replace the server hooks in:
 
 ```text
