@@ -5,11 +5,9 @@ Best held-out lag: `-2`
 
 | lag | train pairs | val pairs | train R2 | val R2 |
 | ---: | ---: | ---: | ---: | ---: |
-| -2 | 896 | 128 | 0.978321 | 0.966122 |
-| -1 | 1344 | 192 | 0.964795 | 0.942381 |
+| -2 | 1792 | 256 | 0.955303 | 0.942505 |
+| -1 | 1792 | 256 | 0.953488 | 0.933435 |
 | 0 | 1792 | 256 | 0.949943 | 0.930689 |
-| 1 | 1344 | 192 | 0.965544 | 0.947571 |
-| 2 | 896 | 128 | 0.976003 | 0.953715 |
 
 `lag=0` pairs each future latent transition with the action chunk currently used by the unified trainer. Negative lag uses an earlier action chunk; positive lag uses a later action chunk.
 
