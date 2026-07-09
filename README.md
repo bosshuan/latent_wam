@@ -574,6 +574,23 @@ steps 33-64. It writes a separate metrics file and saves
 `60 GB` of shared storage unless the step-32 checkpoint is removed after the
 step-64 restore has been verified.
 
+The pilot's inline validation intentionally uses one batch per rank. Before
+scaling beyond the debug pilot, evaluate the step-64 checkpoint over the
+complete distributed validation loader:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint.sh
+```
+
+This is read-only: it restores the checkpoint but performs no optimizer step
+and writes no checkpoint. `MAX_BATCHES=0` evaluates the complete loader and
+writes the aggregate result to
+`reports/interndata_a1/wan_fsdp_step64_aggregate_eval.json`. Use the aggregate
+`S_a`, `delta_cond`, and `collapse` for the scale-up decision; the reported
+`batch_alarm_count` remains a diagnostic because individual small batches may
+be action-ambiguous.
+
 Real robot training should replace the server hooks in:
 
 ```text
