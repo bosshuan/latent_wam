@@ -5,31 +5,41 @@
   "results": [
     {
       "lag": -2,
-      "train_mse": 0.044696711003780365,
-      "train_pairs": 1792,
-      "train_r2": 0.9553032889962196,
-      "val_mse": 0.05778372660279274,
-      "val_pairs": 256,
-      "val_r2": 0.9425051592342182
+      "train_mse": 0.02976279892027378,
+      "train_pairs": 628,
+      "train_r2": 0.9702374458898584,
+      "val_mse": 3971893248.0,
+      "val_pairs": 396,
+      "val_r2": 9.023396506657733e-07
     },
     {
       "lag": -1,
-      "train_mse": 0.046511854976415634,
-      "train_pairs": 1792,
-      "train_r2": 0.9534881450235844,
-      "val_mse": 0.06809959560632706,
-      "val_pairs": 256,
-      "val_r2": 0.9334350563335593
+      "train_mse": 0.026982521638274193,
+      "train_pairs": 628,
+      "train_r2": 0.9730180090848805,
+      "val_mse": 4011459840.0,
+      "val_pairs": 396,
+      "val_r2": 0.0
     },
     {
       "lag": 0,
-      "train_mse": 0.05005674809217453,
-      "train_pairs": 1792,
-      "train_r2": 0.9499432519078255,
-      "val_mse": 0.07147511839866638,
-      "val_pairs": 256,
-      "val_r2": 0.9306892319188232
+      "train_mse": 0.025369277223944664,
+      "train_pairs": 628,
+      "train_r2": 0.9746310554395797,
+      "val_mse": 4069001472.0,
+      "val_pairs": 396,
+      "val_r2": -5.662326052480182e-07
     }
   ],
-  "ridge": 0.01
+  "ridge": 0.01,
+  "split": {
+    "dataset_id": "interndata_a1__sim_dual_arm__sim__articulation_tasks__split_aloha__rotate_the_left_hearth_right_arm_counterclockwise",
+    "holdout_episode": 1,
+    "mode": "same_dataset_episode_holdout",
+    "train_episodes": [
+      0
+    ],
+    "train_windows": 157,
+    "val_windows": 99
+  }
 }
