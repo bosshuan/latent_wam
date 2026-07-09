@@ -17,32 +17,36 @@ def _aligned_pairs(
     action_chunks: torch.Tensor,
     action_valid: torch.Tensor,
     lag: int,
+    action_origin: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Align delta[j] with action[j + lag], dropping unavailable boundaries."""
+    """Align delta[j] with full-window action[action_origin + j + lag]."""
     if latent_delta.ndim != 3 or action_chunks.ndim != 3:
         raise ValueError("latent_delta and action_chunks must be [B,T,C]")
-    if latent_delta.shape[:2] != action_chunks.shape[:2]:
-        raise ValueError("latent and action chunk axes must match")
+    if latent_delta.shape[0] != action_chunks.shape[0]:
+        raise ValueError("latent and action batch axes must match")
     if action_valid.shape != action_chunks.shape[:2]:
-        raise ValueError("action_valid must be [B,T]")
+        raise ValueError("action_valid must match the full action window")
 
-    chunks = latent_delta.shape[1]
-    if abs(int(lag)) >= chunks:
-        raise ValueError(f"abs(lag) must be < chunks={chunks}; got {lag}")
-    delta_start = max(0, -int(lag))
-    delta_stop = min(chunks, chunks - int(lag))
-    action_start = delta_start + int(lag)
-    action_stop = delta_stop + int(lag)
+    action_start = int(action_origin) + int(lag)
+    action_stop = action_start + latent_delta.shape[1]
+    if action_start < 0 or action_stop > action_chunks.shape[1]:
+        raise ValueError(
+            f"lag={lag} selects action chunks [{action_start}:{action_stop}] "
+            f"outside window T={action_chunks.shape[1]}"
+        )
 
-    delta = latent_delta[:, delta_start:delta_stop]
     actions = action_chunks[:, action_start:action_stop]
     valid = action_valid[:, action_start:action_stop]
-    return delta[valid], actions[valid]
+    return latent_delta[valid], actions[valid]
 
 
-def _collect(loader, history_chunks: int, future_chunks: int) -> dict[int, dict]:
+def _collect(
+    loader,
+    history_chunks: int,
+    future_chunks: int,
+    lags: list[int],
+) -> dict[int, dict]:
     collected: dict[int, dict[str, list[torch.Tensor]]] = {}
-    lags = range(-(future_chunks - 1), future_chunks)
     for lag in lags:
         collected[lag] = {"latent_delta": [], "action": []}
 
@@ -57,8 +61,8 @@ def _collect(loader, history_chunks: int, future_chunks: int) -> dict[int, dict]
         )
         latent_delta = future - previous
 
-        actions = batch["actions"].float()
-        action_mask = batch["action_mask"].bool()
+        actions = batch["action_window"].float()
+        action_mask = batch["action_window_mask"].bool()
         denom = action_mask.sum(dim=2, keepdim=True).clamp_min(1)
         action_chunks = (
             actions * action_mask.unsqueeze(-1)
@@ -67,7 +71,11 @@ def _collect(loader, history_chunks: int, future_chunks: int) -> dict[int, dict]
 
         for lag in lags:
             x, y = _aligned_pairs(
-                latent_delta, action_chunks, chunk_valid, lag
+                latent_delta,
+                action_chunks,
+                chunk_valid,
+                lag,
+                action_origin=history_chunks,
             )
             collected[lag]["latent_delta"].append(x.cpu())
             collected[lag]["action"].append(y.cpu())
@@ -159,7 +167,7 @@ def main() -> None:
     parser.add_argument("--output-json", required=True)
     parser.add_argument("--output-md", required=True)
     parser.add_argument("--ridge", type=float, default=1.0e-2)
-    parser.add_argument("--lags", type=int, nargs="+", default=[-2, -1, 0, 1, 2])
+    parser.add_argument("--lags", type=int, nargs="+", default=[-2, -1, 0])
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
 
@@ -171,16 +179,27 @@ def main() -> None:
     history_chunks = int(cfg["temporal"]["history_chunks"])
     future_chunks = int(cfg["temporal"]["future_chunks"])
     for lag in args.lags:
-        if abs(lag) >= future_chunks:
+        if lag > 0:
             raise ValueError(
-                f"lag={lag} is invalid for future_chunks={future_chunks}"
+                f"lag={lag} needs action chunks beyond the cached target window; "
+                "equal-support causal sweep requires lag <= 0"
+            )
+        if history_chunks + lag < 0:
+            raise ValueError(
+                f"lag={lag} exceeds available history_chunks={history_chunks}"
             )
 
     train = _collect(
-        _build_loader(cfg, "train"), history_chunks, future_chunks
+        _build_loader(cfg, "train"),
+        history_chunks,
+        future_chunks,
+        args.lags,
     )
     val = _collect(
-        _build_loader(cfg, "val"), history_chunks, future_chunks
+        _build_loader(cfg, "val"),
+        history_chunks,
+        future_chunks,
+        args.lags,
     )
     device = torch.device(args.device)
     results = []

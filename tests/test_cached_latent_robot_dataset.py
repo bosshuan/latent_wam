@@ -7,6 +7,7 @@ import torch
 from data.cached_latent_robot_dataset import (
     CachedLatentRobotDataset,
     CachedLatentRobotSample,
+    chunk_action_window,
     collate_cached_latent_robot,
     split_future_actions,
 )
@@ -27,11 +28,22 @@ def test_split_future_actions_drops_history_chunks():
     assert mask.all()
 
 
+def test_chunk_action_window_keeps_history_and_future():
+    actions = torch.arange(8 * 12 * 2, dtype=torch.float32).reshape(8 * 12, 2)
+    window, mask = chunk_action_window(actions, t_tok=8)
+    assert window.shape == (8, 12, 2)
+    assert torch.equal(window[0], actions.reshape(8, 12, 2)[0])
+    assert torch.equal(window[-1], actions.reshape(8, 12, 2)[-1])
+    assert mask.all()
+
+
 def _sample(i: int) -> CachedLatentRobotSample:
     return CachedLatentRobotSample(
         latent=torch.ones(8, 144, 384) * i,
         actions=torch.ones(4, 12, 14) * i,
         action_mask=torch.ones(4, 12, dtype=torch.bool),
+        action_window=torch.ones(8, 12, 14) * i,
+        action_window_mask=torch.ones(8, 12, dtype=torch.bool),
         proprio=torch.ones(14) * i,
         action_valid=True,
         embodiment_id=0,
@@ -50,6 +62,8 @@ def test_collate_cached_latent_robot_shapes():
     assert batch["latent"].shape == (2, 8, 144, 384)
     assert batch["actions"].shape == (2, 4, 12, 14)
     assert batch["action_mask"].shape == (2, 4, 12)
+    assert batch["action_window"].shape == (2, 8, 12, 14)
+    assert batch["action_window_mask"].shape == (2, 8, 12)
     assert batch["proprio"].shape == (2, 14)
     assert batch["action_valid"].tolist() == [True, True]
     assert batch["action_schema_id"].tolist() == [0, 0]

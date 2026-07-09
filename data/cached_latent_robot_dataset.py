@@ -28,6 +28,8 @@ class CachedLatentRobotSample:
     latent: torch.Tensor  # [T_tok, N, C]
     actions: torch.Tensor  # [T_fut, n_act, A]
     action_mask: torch.Tensor  # [T_fut, n_act]
+    action_window: torch.Tensor  # [T_tok, n_act, A]
+    action_window_mask: torch.Tensor  # [T_tok, n_act]
     proprio: torch.Tensor | None  # [S]
     action_valid: bool
     embodiment_id: int
@@ -62,6 +64,22 @@ def _safe_torch_load(path: str | Path) -> torch.Tensor:
         return torch.load(path, map_location="cpu")
 
 
+def chunk_action_window(
+    actions: torch.Tensor,
+    t_tok: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Reshape flattened controls into the full latent-aligned action window."""
+    if actions.ndim != 2:
+        raise ValueError(f"expected actions [T_action,A], got {tuple(actions.shape)}")
+    steps = actions.shape[0]
+    if steps % t_tok:
+        raise ValueError(f"action steps={steps} not divisible by t_tok={t_tok}")
+    n_act = steps // t_tok
+    chunks = actions.reshape(t_tok, n_act, actions.shape[-1])
+    mask = torch.ones(chunks.shape[:2], dtype=torch.bool)
+    return chunks, mask
+
+
 def split_future_actions(
     actions: torch.Tensor,
     t_tok: int,
@@ -74,20 +92,14 @@ def split_future_actions(
     trains on the future latent tokens, so the action branch must receive the
     future action chunks only.
     """
-    if actions.ndim != 2:
-        raise ValueError(f"expected actions [T_action,A], got {tuple(actions.shape)}")
     if t_tok != history_chunks + future_chunks:
         raise ValueError(
             f"t_tok={t_tok} != history+future={history_chunks + future_chunks}"
         )
-    steps = actions.shape[0]
-    if steps % t_tok:
-        raise ValueError(f"action steps={steps} not divisible by t_tok={t_tok}")
-    n_act = steps // t_tok
-    chunks = actions.reshape(t_tok, n_act, actions.shape[-1])
+    chunks, mask = chunk_action_window(actions, t_tok)
     future = chunks[history_chunks : history_chunks + future_chunks]
-    mask = torch.ones(future.shape[:2], dtype=torch.bool)
-    return future, mask
+    future_mask = mask[history_chunks : history_chunks + future_chunks]
+    return future, future_mask
 
 
 class CachedLatentRobotDataset(Dataset):
@@ -153,16 +165,22 @@ class CachedLatentRobotDataset(Dataset):
             )
         t_tok = int(latent.shape[0])
         actions = _concat_time_features(item, tuple(rec["action_keys"])).float()
-        future_actions, future_mask = split_future_actions(
-            actions,
-            t_tok=t_tok,
-            history_chunks=self.history_chunks,
-            future_chunks=self.future_chunks,
-        )
-        if self.control_normalizer is not None:
-            future_actions = self.control_normalizer.normalize_action(
-                future_actions, int(entry["action_schema_id"])
+        if t_tok != self.history_chunks + self.future_chunks:
+            raise ValueError(
+                f"t_tok={t_tok} != history+future="
+                f"{self.history_chunks + self.future_chunks}"
             )
+        action_window, action_window_mask = chunk_action_window(actions, t_tok)
+        if self.control_normalizer is not None:
+            action_window = self.control_normalizer.normalize_action(
+                action_window, int(entry["action_schema_id"])
+            )
+        future_actions = action_window[
+            self.history_chunks : self.history_chunks + self.future_chunks
+        ]
+        future_mask = action_window_mask[
+            self.history_chunks : self.history_chunks + self.future_chunks
+        ]
         proprio = None
         if rec.get("state_keys"):
             proprio = _concat_current_features(item, tuple(rec["state_keys"])).float()
@@ -175,6 +193,8 @@ class CachedLatentRobotDataset(Dataset):
             latent=latent,
             actions=future_actions,
             action_mask=future_mask,
+            action_window=action_window,
+            action_window_mask=action_window_mask,
             proprio=proprio,
             action_valid=True,
             embodiment_id=int(entry["embodiment_id"]),
@@ -215,12 +235,15 @@ def collate_cached_latent_robot(samples: Sequence[CachedLatentRobotSample]) -> d
         raise ValueError("cannot collate an empty cached latent batch")
     token_shape = tuple(samples[0].latent.shape)
     action_shape = tuple(samples[0].actions.shape)
+    action_window_shape = tuple(samples[0].action_window.shape)
     schema = samples[0].action_schema_id
     for sample in samples:
         if tuple(sample.latent.shape) != token_shape:
             raise ValueError("cached latent batch mixes latent shapes")
         if tuple(sample.actions.shape) != action_shape:
             raise ValueError("cached latent batch mixes action shapes")
+        if tuple(sample.action_window.shape) != action_window_shape:
+            raise ValueError("cached latent batch mixes action window shapes")
         if sample.action_schema_id != schema:
             raise ValueError("cached latent batch mixes action schemas")
 
@@ -232,6 +255,10 @@ def collate_cached_latent_robot(samples: Sequence[CachedLatentRobotSample]) -> d
         "latent": torch.stack([s.latent for s in samples], dim=0),
         "actions": torch.stack([s.actions for s in samples], dim=0),
         "action_mask": torch.stack([s.action_mask for s in samples], dim=0),
+        "action_window": torch.stack([s.action_window for s in samples], dim=0),
+        "action_window_mask": torch.stack(
+            [s.action_window_mask for s in samples], dim=0
+        ),
         "proprio": proprio,
         "action_valid": torch.tensor([s.action_valid for s in samples], dtype=torch.bool),
         "embodiment_id": torch.tensor([s.embodiment_id for s in samples], dtype=torch.long),

@@ -635,10 +635,13 @@ bash scripts/evaluate_interndata_a1_cached_action_lag.sh
 ```
 
 This does not load Wan or re-encode video. It fits the same ridge
-inverse-dynamics probe for action offsets `[-2, -1, 0, 1, 2]` and writes
+inverse-dynamics probe for causal action offsets `[-2, -1, 0]` and writes
 `reports/interndata_a1/cached_action_lag.{json,md}`. Here `lag=0` is the
 alignment currently used by unified training, negative values use earlier
-action chunks, and positive values use later chunks. Interpret the result as:
+action chunks. Every lag is evaluated on the same four future transitions and
+therefore has the same pair count. Positive lags are excluded because the cache
+does not contain actions beyond the final target chunk, and future actions are
+not causal candidates for an earlier transition. Interpret the result as:
 
 - `lag=0` clearly best: temporal alignment is supported; revise the
   counterfactual objective so sensitivity cannot be gained by making the
