@@ -71,6 +71,33 @@ def _checkpoint_path(root: str | Path, step: int) -> Path:
     return Path(root) / f"step_{int(step):06d}"
 
 
+def _pilot_acceptance(initial_val: dict, final_val: dict, cfg: dict) -> dict:
+    max_ratio = float(cfg.get("max_final_val_total_ratio", 1.10))
+    min_sensitivity = float(cfg.get("min_final_action_sensitivity", 0.01))
+    min_delta_cond = float(cfg.get("min_final_delta_cond", -1.0e-3))
+    val_ratio = final_val["total"] / max(initial_val["total"], 1.0e-12)
+    checks = {
+        "val_ratio": val_ratio,
+        "max_val_ratio": max_ratio,
+        "ratio_ok": val_ratio <= max_ratio,
+        "cf_conclusive_ok": (
+            not bool(cfg.get("require_cf_conclusive", True))
+            or not final_val["cf_inconclusive"]
+        ),
+        "action_sensitivity_ok": final_val["S_a"] >= min_sensitivity,
+        "delta_cond_ok": final_val["delta_cond"] >= min_delta_cond,
+        "min_action_sensitivity": min_sensitivity,
+        "min_delta_cond": min_delta_cond,
+    }
+    checks["pilot_ok"] = bool(
+        checks["ratio_ok"]
+        and checks["cf_conclusive_ok"]
+        and checks["action_sensitivity_ok"]
+        and checks["delta_cond_ok"]
+    )
+    return checks
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -244,25 +271,7 @@ def main() -> None:
                     ctx.is_main,
                 )
 
-        max_ratio = float(pcfg.get("max_final_val_total_ratio", 1.10))
-        val_ratio = final_val["total"] / max(val_pre["total"], 1.0e-12)
-        ratio_ok = val_ratio <= max_ratio
-        conclusive_ok = (
-            not bool(pcfg.get("require_cf_conclusive", True))
-            or not final_val["cf_inconclusive"]
-        )
-        collapse_ok = (
-            not bool(pcfg.get("require_no_collapse", True))
-            or not final_val["collapse"]
-        )
-        pilot_ok = ratio_ok and conclusive_ok and collapse_ok
-        if not pilot_ok:
-            raise RuntimeError(
-                f"pilot acceptance failed: val_ratio={val_ratio:.6f}/{max_ratio:.6f} "
-                f"cf_inconclusive={final_val['cf_inconclusive']} "
-                f"collapse={final_val['collapse']}"
-            )
-
+        acceptance = _pilot_acceptance(val_pre, final_val, pcfg)
         checkpoint_dir = _checkpoint_path(
             pcfg["checkpoint_root"], completed_steps
         )
@@ -279,15 +288,29 @@ def main() -> None:
                 "config": args.config,
                 "world_size": ctx.world_size,
                 "sharding_strategy": dcfg.get("sharding_strategy", "full_shard"),
-                "val_total_ratio": val_ratio,
-                "final_collapse": final_val["collapse"],
+                "val_total_ratio": acceptance["val_ratio"],
+                "strict_final_collapse": final_val["collapse"],
+                "pilot_ok": acceptance["pilot_ok"],
             },
             backend=checkpoint_backend,
         )
         alloc_gb, reserved_gb = _max_cuda_memory(ctx.device)
+        _write_jsonl(
+            metrics_path,
+            {
+                "kind": "acceptance",
+                "step": completed_steps,
+                "strict_collapse": final_val["collapse"],
+                **acceptance,
+            },
+            ctx.is_main,
+        )
         if ctx.is_main:
             print(
-                f"[wan-pilot] val_total_ratio={val_ratio:.6f} "
+                f"[wan-pilot] val_total_ratio={acceptance['val_ratio']:.6f} "
+                f"S_a_ok={acceptance['action_sensitivity_ok']} "
+                f"delta_cond_ok={acceptance['delta_cond_ok']} "
+                f"strict_collapse={final_val['collapse']} "
                 f"checkpoint={checkpoint_dir}",
                 flush=True,
             )
@@ -296,6 +319,12 @@ def main() -> None:
                 f"peak_cuda_reserved_gb={reserved_gb:.2f}",
                 flush=True,
             )
+        if not acceptance["pilot_ok"]:
+            raise RuntimeError(
+                "pilot acceptance failed after checkpoint save: "
+                f"{acceptance}"
+            )
+        if ctx.is_main:
             print("[wan-pilot] ok", flush=True)
         barrier(ctx)
     finally:

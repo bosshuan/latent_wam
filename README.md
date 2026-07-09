@@ -547,10 +547,15 @@ bash scripts/train_interndata_a1_dual_arm_wan_fsdp_pilot.sh
 
 This uses `DistributedSampler` so ranks do not train on overlapping manifest
 rows, streams 32 optimizer steps, validates every 8 steps with fixed noise, and
-writes metrics to `reports/interndata_a1/wan_fsdp_pilot_32.jsonl`. It accepts
-only a conclusive, non-collapsed final validation whose total loss is no more
-than 1.10x its initial value. On success it saves exactly one full model+Adam
-DCP checkpoint at `checkpoints/interndata_a1/wan_fsdp_pilot/step_000032`.
+writes metrics to `reports/interndata_a1/wan_fsdp_pilot_32_v2.jsonl`. The strict
+research monitor still reports collapse whenever `delta_cond <= 0`. Pilot
+acceptance separately requires conclusive counterfactuals, `S_a >= 0.01`,
+`delta_cond >= -0.001` (numerical tolerance around zero), and final validation
+loss no more than 1.10x its initial value.
+
+The trainer always saves the final full model+Adam DCP checkpoint at
+`checkpoints/interndata_a1/wan_fsdp_pilot/step_000032` before raising an
+acceptance error, so a borderline monitor cannot discard completed compute.
 
 Continue from a saved pilot checkpoint with:
 

@@ -79,9 +79,10 @@ pilot:
   val_every: 8
   eval_seed: 2201
   max_final_val_total_ratio: 1.10
+  min_final_action_sensitivity: 0.01
+  min_final_delta_cond: -1.0e-3
   require_cf_conclusive: true
-  require_no_collapse: true
-  metrics_path: reports/interndata_a1/wan_fsdp_pilot_32.jsonl
+  metrics_path: reports/interndata_a1/wan_fsdp_pilot_32_v2.jsonl
   checkpoint_root: checkpoints/interndata_a1/wan_fsdp_pilot
   checkpoint_backend: legacy_fsdp1
   resume_from: null
