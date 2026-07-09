@@ -1,0 +1,24 @@
+# Fit fixed action/state statistics on the cached-latent TRAIN split only.
+
+seed: 67
+schema_report: reports/interndata_a1/schema_report.json
+manifest_path: reports/interndata_a1/latent_cache_vjepa_vjrae_medium_manifest.jsonl
+out_path: reports/interndata_a1/control_stats_train.json
+
+data:
+  batch_size: 8
+  train_start_item: 0
+  train_index_modulus: 8
+  train_index_remainders: [0, 1, 2, 3, 4, 5, 6]
+  train_max_items: 448
+  train_shuffle: false
+  train_drop_last: false
+  num_workers: 0
+
+temporal:
+  history_chunks: 4
+  future_chunks: 4
+  tubelet: 2
+
+stats:
+  std_floor: 1.0e-3

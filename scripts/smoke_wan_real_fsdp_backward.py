@@ -11,7 +11,6 @@ It proves the M4 distributed training path and exits after one optimizer step.
 from __future__ import annotations
 
 import argparse
-import copy
 import dataclasses
 import gc
 import math
@@ -250,13 +249,12 @@ def main() -> None:
                 flush=True,
             )
 
-        loader_cfg = copy.deepcopy(cfg)
-        loader_cfg["data"]["train_start_item"] = (
-            int(loader_cfg["data"].get("train_start_item", 0)) + 2 * ctx.rank
-        )
-        train_loader = _build_loader(loader_cfg, "train")
+        # Every rank uses the exact train modulo split. Rank-offset seeds make
+        # shuffle choose different batches without shifting start_item (shifting
+        # before modulo filtering would change the original train/val remainder).
+        train_loader = _build_loader(cfg, "train")
         batch = next(iter(train_loader))
-        inp = _to_step_inputs(batch, loader_cfg, ctx.device)
+        inp = _to_step_inputs(batch, cfg, ctx.device)
         action_data_rms = math.sqrt(
             _all_reduce_scalar(float(inp.actions.float().pow(2).mean()), ctx.device)
             / ctx.world_size

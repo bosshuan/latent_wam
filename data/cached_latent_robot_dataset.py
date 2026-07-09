@@ -17,6 +17,7 @@ from typing import Any, Sequence
 import torch
 from torch.utils.data import Dataset
 
+from data.control_normalizer import FixedControlNormalizer
 from data.lerobot_v21_direct import DirectLeRobotV21Dataset
 from data.robot_dataset import _concat_current_features, _concat_time_features
 from data.temporal_alignment import build_delta_timestamps
@@ -101,6 +102,7 @@ class CachedLatentRobotDataset(Dataset):
         index_modulus: int | None = None,
         index_remainders: Sequence[int] | None = None,
         max_items: int | None = None,
+        control_stats_path: str | Path | None = None,
     ) -> None:
         self.schema_records = {
             str(rec["dataset_id"]): rec for rec in _load_json(schema_report)
@@ -127,6 +129,11 @@ class CachedLatentRobotDataset(Dataset):
         self.history_chunks = int(history_chunks)
         self.future_chunks = int(future_chunks)
         self.tubelet = int(tubelet)
+        self.control_normalizer = (
+            None
+            if control_stats_path is None
+            else FixedControlNormalizer.from_json(control_stats_path)
+        )
         self._backends: dict[str, DirectLeRobotV21Dataset] = {}
 
     def __len__(self) -> int:
@@ -152,9 +159,17 @@ class CachedLatentRobotDataset(Dataset):
             history_chunks=self.history_chunks,
             future_chunks=self.future_chunks,
         )
+        if self.control_normalizer is not None:
+            future_actions = self.control_normalizer.normalize_action(
+                future_actions, int(entry["action_schema_id"])
+            )
         proprio = None
         if rec.get("state_keys"):
             proprio = _concat_current_features(item, tuple(rec["state_keys"])).float()
+            if self.control_normalizer is not None:
+                proprio = self.control_normalizer.normalize_state(
+                    proprio, int(entry["embodiment_id"])
+                )
 
         return CachedLatentRobotSample(
             latent=latent,

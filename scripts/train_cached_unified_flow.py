@@ -57,6 +57,7 @@ def _build_loader(cfg: dict, split: str) -> DataLoader:
         index_modulus=dcfg.get(f"{split}_index_modulus", dcfg.get("index_modulus")),
         index_remainders=dcfg.get(f"{split}_index_remainders", dcfg.get("index_remainders")),
         max_items=int(dcfg.get(f"{split}_max_items", dcfg.get("max_items", 16))),
+        control_stats_path=cfg.get("control_stats_path"),
     )
     return DataLoader(
         dataset,
@@ -64,7 +65,9 @@ def _build_loader(cfg: dict, split: str) -> DataLoader:
         shuffle=bool(dcfg.get(f"{split}_shuffle", dcfg.get("shuffle", split == "train"))),
         num_workers=int(dcfg.get("num_workers", 0)),
         collate_fn=collate_cached_latent_robot,
-        drop_last=True,
+        drop_last=bool(
+            dcfg.get(f"{split}_drop_last", dcfg.get("drop_last", True))
+        ),
     )
 
 

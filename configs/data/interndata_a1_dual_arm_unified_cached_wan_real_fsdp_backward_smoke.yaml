@@ -8,6 +8,7 @@ seed: 61
 allow_tf32: true
 schema_report: reports/interndata_a1/schema_report.json
 manifest_path: reports/interndata_a1/latent_cache_vjepa_vjrae_medium_manifest.jsonl
+control_stats_path: reports/interndata_a1/control_stats_train.json
 
 weights:
   wan_checkpoint: /mnt/sfs_turbo/fyy/checkpoints/Wan2.2-TI2V-5B

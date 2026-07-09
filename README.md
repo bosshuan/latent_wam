@@ -457,8 +457,15 @@ The server launcher currently defaults to the three available GPUs `4,5,6`:
 
 ```bash
 cd /mnt/sfs_turbo/fyy/latent_wam
+bash scripts/fit_interndata_a1_dual_arm_control_stats.sh
 bash scripts/smoke_interndata_a1_dual_arm_unified_cached_wan_real_fsdp_backward.sh
 ```
+
+The first command fits action statistics per `action_schema_id` and proprio
+statistics per `embodiment_id` using only train split remainders `0..6`; remainder
+`7` remains validation-only. It writes
+`reports/interndata_a1/control_stats_train.json`. The cached dataset applies
+these fixed statistics online, so the VJ-RAE latent cache is unchanged.
 
 This runs exactly one real cached latent-action optimization step. Rank 0 loads
 the official checkpoint; all other ranks construct on the meta device, then
