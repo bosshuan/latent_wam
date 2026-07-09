@@ -488,6 +488,29 @@ from-scratch action head before a real run. Healthy output ends with:
 Any non-finite loss/gradient, zero gradient in a required branch, missing
 optimizer update, wrong world size, or CUDA/FSDP failure stops the script.
 
+After the one-step normalized-control smoke passes, run the M5 short fixed-batch
+overfit:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/train_interndata_a1_dual_arm_wan_real_fsdp_short.sh
+```
+
+This keeps one different real train batch per rank for eight optimizer steps.
+The pretrained Wan backbone uses `1e-6`; new latent/action/state modules use
+`1e-4`. Fixed-noise train and independent validation probes run before and
+after. Success requires train `total`, `z_fm`, and `a_fm` all to decrease and
+ends with:
+
+```text
+[wan-short] train_overfit_ok=True ...
+[wan-short] ok
+```
+
+Validation `S_a`, `delta_cond`, and `collapse` are diagnostic at this short
+horizon; they are not used to claim generalization. This run intentionally does
+not save a 5B checkpoint.
+
 Real robot training should replace the server hooks in:
 
 ```text
