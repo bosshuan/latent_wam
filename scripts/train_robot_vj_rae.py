@@ -11,7 +11,6 @@ M2 path before launching larger VJ-RAE pretraining:
 from __future__ import annotations
 
 import argparse
-from itertools import cycle
 from pathlib import Path
 
 import torch
@@ -26,6 +25,14 @@ from scripts.cache_robot_latents import (
     _preprocess_pixels,
 )
 from train.train_vj_rae import build_codec_from_encoder, codec_train_step
+
+
+def _repeat_loader(loader):
+    """Repeat a loader without retaining yielded pixel batches in memory."""
+    if len(loader) <= 0:
+        raise RuntimeError("cannot repeat an empty VJ-RAE data loader")
+    while True:
+        yield from loader
 
 
 def _actions_to_transitions(
@@ -167,7 +174,7 @@ def main() -> None:
 
     max_steps = int(vcfg.get("max_steps", 8))
     log_every = int(vcfg.get("log_every", 1))
-    batch_iter = cycle(loader)
+    batch_iter = _repeat_loader(loader)
     codec.train()
     probe.train()
     for step in range(max_steps):

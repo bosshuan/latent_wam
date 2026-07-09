@@ -50,6 +50,9 @@ def _split_cfg(cfg: dict, split: str) -> dict:
     for src, dst in (
         (f"{split}_start_index", "start_index"),
         (f"{split}_samples_per_dataset", "max_samples_per_dataset"),
+        (f"{split}_max_episodes_per_dataset", "max_episodes_per_dataset"),
+        (f"{split}_episode_modulus", "episode_modulus"),
+        (f"{split}_episode_remainders", "episode_remainders"),
         (f"{split}_batch_size", "batch_size"),
         (f"{split}_num_workers", "num_workers"),
     ):

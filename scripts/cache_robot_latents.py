@@ -85,16 +85,33 @@ def _episode_balanced_subset(ds, dcfg: dict):
     margin = int(dcfg.get("episode_margin_frames", 64))
     samples_per_episode = int(dcfg.get("samples_per_episode", 32))
     episode_stride = int(dcfg.get("episode_stride", 1))
+    episode_modulus = int(dcfg.get("episode_modulus", 0))
+    episode_remainders = {
+        int(value) % episode_modulus
+        for value in dcfg.get("episode_remainders", [])
+    } if episode_modulus > 0 else set()
     max_episodes = int(dcfg.get("max_episodes_per_dataset", 0))
     max_samples = int(dcfg.get("max_samples_per_dataset", 0))
     if margin < 0:
         raise ValueError("episode_margin_frames must be >= 0")
     if samples_per_episode <= 0 or episode_stride <= 0:
         raise ValueError("samples_per_episode and episode_stride must be positive")
+    if episode_modulus < 0:
+        raise ValueError("episode_modulus must be >= 0")
+    if episode_modulus > 0 and not episode_remainders:
+        raise ValueError(
+            "episode_remainders must be non-empty when episode_modulus > 0"
+        )
 
     eligible = []
     skipped_short = 0
-    for record in ranges[::episode_stride]:
+    filtered_ranges = [
+        record
+        for record in ranges
+        if not episode_remainders
+        or int(record["episode"]) % episode_modulus in episode_remainders
+    ]
+    for record in filtered_ranges[::episode_stride]:
         start = int(record["start"]) + margin
         stop = int(record["stop"]) - margin
         indices = _evenly_spaced_indices(start, stop, samples_per_episode)
@@ -123,6 +140,7 @@ def _episode_balanced_subset(ds, dcfg: dict):
             break
     plan = {
         "available_episodes": len(ranges),
+        "filtered_episodes": len(filtered_ranges),
         "selected_episodes": len(eligible),
         "skipped_short_episodes": skipped_short,
         "samples": len(selected),
@@ -179,6 +197,7 @@ def _build_loader(cfg: dict) -> DataLoader:
             sub, plan = _episode_balanced_subset(ds, dcfg)
             sampling_summary = (
                 f"episodes={plan['selected_episodes']}/"
+                f"{plan['filtered_episodes']}/"
                 f"{plan['available_episodes']} "
                 f"skipped_short={plan['skipped_short_episodes']}"
             )
@@ -203,10 +222,11 @@ def _build_loader(cfg: dict) -> DataLoader:
     return DataLoader(
         ConcatDataset(datasets),
         batch_size=int(dcfg.get("batch_size", 1)),
-        shuffle=False,
+        shuffle=bool(dcfg.get("shuffle", False)),
         num_workers=int(dcfg.get("num_workers", 0)),
         collate_fn=collate_trajectory,
         pin_memory=bool(dcfg.get("pin_memory", True)),
+        generator=torch.Generator().manual_seed(int(cfg.get("seed", 0))),
     )
 
 

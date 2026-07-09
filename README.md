@@ -672,6 +672,42 @@ available/selected episode count, skipped short episodes, and total sample
 count. Use this report to set the actual broad VJ-RAE and cache budget before
 launching expensive encoding.
 
+For the current plan (64 episodes and 2048 windows from each of two dual-arm
+tasks), train the broad VJ-RAE on one available GPU:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 \
+bash scripts/train_interndata_a1_dual_arm_vj_rae_broad.sh
+```
+
+The loader shuffles across both tasks and all selected episodes. Its repeat
+iterator restarts the DataLoader without retaining decoded pixel batches in
+memory. The run fits the feature normalizer on 256 mixed windows, trains for
+2000 unique-window steps, and saves
+`checkpoints/interndata_a1/vj_rae_dual_arm_broad.pt`.
+
+Before generating the broad cache, run the episode-disjoint representation
+probe:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 \
+bash scripts/evaluate_interndata_a1_dual_arm_vj_rae_probe_broad.sh
+```
+
+Probe train episodes use `episode_id % 5` in `[0,1,2,3]`; validation uses
+remainder `4`. Continue only when `retention_ok=True`, `predictive_ok=True`, and
+held-out `latent_r2 >= 0.05`. Then generate the 4096-window cache:
+
+```bash
+CUDA_VISIBLE_DEVICES=4 \
+bash scripts/cache_interndata_a1_dual_arm_vjepa_vjrae_broad.sh
+```
+
+This writes
+`reports/interndata_a1/latent_cache_vjepa_vjrae_broad_manifest.jsonl` and uses
+separate `broad-v0` cache/version keys, leaving the medium smoke artifacts
+untouched.
+
 Real robot training should replace the server hooks in:
 
 ```text

@@ -36,3 +36,21 @@ def test_episode_balanced_subset_round_robins_before_global_cap():
     assert plan["selected_episodes"] == 2
     assert plan["skipped_short_episodes"] == 1
     assert plan["samples"] == 3
+
+
+def test_episode_balanced_subset_filters_episode_remainders():
+    subset, plan = _episode_balanced_subset(
+        _EpisodeDataset(),
+        {
+            "episode_margin_frames": 10,
+            "samples_per_episode": 2,
+            "episode_modulus": 2,
+            "episode_remainders": [1],
+            "max_episodes_per_dataset": 0,
+            "max_samples_per_dataset": 0,
+        },
+    )
+    assert subset.indices == [130, 170]
+    assert plan["available_episodes"] == 3
+    assert plan["filtered_episodes"] == 1
+    assert plan["episode_ids"] == [1]

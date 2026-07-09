@@ -1,14 +1,11 @@
-# Episode-balanced InternData-A1 dual-arm VJ-RAE plan.
-#
-# Run the plan-only launcher first. Final train/cache budgets should be chosen
-# from the reported episode counts before starting expensive V-JEPA encoding.
+# Episode-disjoint probe for the broad VJ-RAE checkpoint.
 
-seed: 43
+seed: 47
 schema_report: reports/interndata_a1/schema_report.json
 reader_backend: direct
 device: cuda
 allow_tf32: true
-log_prefix: vj-rae-broad
+log_prefix: vj-rae-probe-broad
 
 filter:
   embodiments: [interndata_a1_dual_arm]
@@ -21,10 +18,9 @@ data:
   sampling_mode: episode_balanced
   batch_size: 1
   shuffle: true
-  max_batches: 4096
-  max_samples_per_dataset: 2048
+  max_samples_per_dataset: 512
   max_episodes_per_dataset: 64
-  samples_per_episode: 32
+  samples_per_episode: 8
   episode_stride: 1
   episode_margin_frames: 64
   num_workers: 0
@@ -57,23 +53,36 @@ encoder:
 feature_cache:
   norm_version: interndata-a1-dual-arm-broad-v0
 
-normalizer:
-  max_batches: 256
-
 vj_rae:
   hidden_dim: 1024
   latent_dim: 384
   pool: 2
-  lr: 1.0e-4
-  weight_decay: 0.0
-  max_steps: 2000
-  log_every: 25
-  out_path: checkpoints/interndata_a1/vj_rae_dual_arm_broad.pt
+  checkpoint_path: checkpoints/interndata_a1/vj_rae_dual_arm_broad.pt
+  strict: true
   probe_action_dim: 14
   probe_hidden_dim: 256
-  loss:
-    lambda_cos: 1.0
-    lambda_var: 1.0
-    lambda_cov: 0.04
-    lambda_dyn: 0.2
-    var_gamma: 1.0
+
+probe_eval:
+  batch_size: 1
+  num_workers: 0
+  train_episode_modulus: 5
+  train_episode_remainders: [0, 1, 2, 3]
+  val_episode_modulus: 5
+  val_episode_remainders: [4]
+  train_max_episodes_per_dataset: 64
+  val_max_episodes_per_dataset: 32
+  train_samples_per_dataset: 512
+  val_samples_per_dataset: 256
+  train_eval_batches: 768
+  train_steps: 2000
+  probe_batch_size: 256
+  eval_batches: 256
+  lr: 3.0e-4
+  weight_decay: 0.0
+  probe_hidden_dim: 256
+  action_std_floor: 1.0e-3
+  log_every: 100
+  max_relative_mse_increase: 0.15
+  min_latent_r2: 0.05
+  out_json: reports/interndata_a1/vj_rae_probe_broad.json
+  out_md: reports/interndata_a1/vj_rae_probe_broad.md
