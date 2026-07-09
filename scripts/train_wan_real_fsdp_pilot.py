@@ -102,6 +102,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--resume", default=None)
+    parser.add_argument("--total-steps", type=int, default=None)
+    parser.add_argument("--metrics-path", default=None)
     args = parser.parse_args()
     with open(args.config) as handle:
         cfg = yaml.safe_load(handle)
@@ -160,7 +162,11 @@ def main() -> None:
                 backend=checkpoint_backend,
             )
 
-        total_steps = int(pcfg.get("total_steps", 32))
+        total_steps = int(
+            args.total_steps
+            if args.total_steps is not None
+            else pcfg.get("total_steps", 32)
+        )
         if completed_steps >= total_steps:
             raise ValueError(
                 f"resume step={completed_steps} is not below total_steps={total_steps}"
@@ -168,7 +174,7 @@ def main() -> None:
         epoch, train_iterator = _position_train_iterator(
             train_loader, completed_steps
         )
-        metrics_path = pcfg["metrics_path"]
+        metrics_path = args.metrics_path or pcfg["metrics_path"]
         eval_seed = int(pcfg.get("eval_seed", 2201))
         val_pre = _evaluate(
             model,

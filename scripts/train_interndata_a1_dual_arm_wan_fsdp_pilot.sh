@@ -18,6 +18,12 @@ ARGS=(--config "${CONFIG}")
 if [[ -n "${RESUME_FROM:-}" ]]; then
   ARGS+=(--resume "${RESUME_FROM}")
 fi
+if [[ -n "${TOTAL_STEPS:-}" ]]; then
+  ARGS+=(--total-steps "${TOTAL_STEPS}")
+fi
+if [[ -n "${METRICS_PATH:-}" ]]; then
+  ARGS+=(--metrics-path "${METRICS_PATH}")
+fi
 
 torchrun --standalone --nproc_per_node="${NPROC_PER_NODE}" \
   scripts/train_wan_real_fsdp_pilot.py "${ARGS[@]}"

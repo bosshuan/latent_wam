@@ -561,12 +561,18 @@ Continue from a saved pilot checkpoint with:
 
 ```bash
 RESUME_FROM=checkpoints/interndata_a1/wan_fsdp_pilot/step_000032 \
+TOTAL_STEPS=64 \
+METRICS_PATH=reports/interndata_a1/wan_fsdp_pilot_resume_64.jsonl \
+CUDA_VISIBLE_DEVICES=4,5,6 \
 bash scripts/train_interndata_a1_dual_arm_wan_fsdp_pilot.sh
 ```
 
-Set `pilot.total_steps` above the saved step before resuming. The trainer restores
-model, Adam, completed step, and reconstructs the distributed sampler epoch and
-batch offset.
+This starts a fresh distributed process, restores model and Adam state, and
+reconstructs the distributed sampler epoch and batch offset before training
+steps 33-64. It writes a separate metrics file and saves
+`checkpoints/interndata_a1/wan_fsdp_pilot/step_000064`. Budget roughly another
+`60 GB` of shared storage unless the step-32 checkpoint is removed after the
+step-64 restore has been verified.
 
 Real robot training should replace the server hooks in:
 
