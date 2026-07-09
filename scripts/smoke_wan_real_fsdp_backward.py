@@ -257,11 +257,16 @@ def main() -> None:
         train_loader = _build_loader(loader_cfg, "train")
         batch = next(iter(train_loader))
         inp = _to_step_inputs(batch, loader_cfg, ctx.device)
+        action_data_rms = math.sqrt(
+            _all_reduce_scalar(float(inp.actions.float().pow(2).mean()), ctx.device)
+            / ctx.world_size
+        )
         if ctx.is_main:
             print(
                 "[wan-fsdp] batch "
                 f"context={tuple(inp.context_latent.shape)} "
-                f"target={tuple(inp.r1.shape)} actions={tuple(inp.actions.shape)}",
+                f"target={tuple(inp.r1.shape)} actions={tuple(inp.actions.shape)} "
+                f"action_data_rms={action_data_rms:.6f}",
                 flush=True,
             )
 
@@ -322,6 +327,15 @@ def main() -> None:
             name: _all_reduce_scalar(float(metrics[name]), ctx.device) / ctx.world_size
             for name in ("z_fm", "a_fm", "cf")
         }
+        max_action_fm = float(
+            _cfg_get(cfg, "smoke", "max_initial_action_fm", default=10.0)
+        )
+        if metric_means["a_fm"] > max_action_fm:
+            raise RuntimeError(
+                f"initial weighted action FM loss {metric_means['a_fm']:.6f} exceeds "
+                f"smoke.max_initial_action_fm={max_action_fm:.6f}; check action "
+                "normalization and action-head initialization"
+            )
         alloc_gb, reserved_gb = _max_cuda_memory(ctx.device)
         if ctx.is_main:
             print(

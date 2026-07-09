@@ -468,7 +468,9 @@ does not create EMA weights or save a 5B checkpoint. To use a different set of
 GPUs, set `CUDA_VISIBLE_DEVICES`; the launcher derives `NPROC_PER_NODE` from it.
 
 Success prints nonzero gradient norms for the Wan backbone, latent adapter/head,
-and action encoder/bridge/head, then ends with:
+and action encoder/bridge/head. It also prints the raw action RMS and rejects an
+initial weighted action flow loss above `10`, which catches an unstable
+from-scratch action head before a real run. Healthy output ends with:
 
 ```text
 [wan-fsdp] total_grad_norm=... optimizer_update_max=...

@@ -18,7 +18,7 @@ data:
   train_index_modulus: 8
   train_index_remainders: [0, 1, 2, 3, 4, 5, 6]
   train_max_items: 16
-  train_shuffle: false
+  train_shuffle: true
   num_workers: 0
 
 temporal:
@@ -65,6 +65,9 @@ optimizer:
   lr: 1.0e-5
   weight_decay: 0.0
   max_grad_norm: 1.0
+
+smoke:
+  max_initial_action_fm: 10.0
 
 distributed:
   backend: nccl

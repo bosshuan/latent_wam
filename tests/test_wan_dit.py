@@ -59,6 +59,20 @@ def test_timestep_embeddings_follow_module_dtype_without_autocast():
     assert velocity.dtype == torch.float64
 
 
+def test_action_head_uses_small_nonzero_output_initialization():
+    torch.manual_seed(0)
+    head = _model().action_head
+    final = head.decoder.layer2
+
+    assert torch.count_nonzero(final.W) > 0
+    assert abs(float(final.W.std()) - 1.0e-3) < 2.0e-4
+    assert torch.count_nonzero(final.b) == 0
+
+    hidden = torch.randn(2, 4, 24)
+    velocity = head(hidden, torch.tensor([0, 1]))
+    assert 0.0 < float(velocity.abs().mean()) < 0.1
+
+
 def test_robot_forward_shapes():
     torch.manual_seed(0)
     out = _model()(use_value=True, **_robot())
