@@ -186,7 +186,12 @@ class WanBackbone(nn.Module):
 
     def timestep_modulation(self, t_tok: torch.Tensor) -> torch.Tensor:
         """Per-token timestep [B,S] -> modulation [B,S,6,dim]."""
-        e = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, t_tok))  # [B,S,dim]
+        # Keep sinusoid construction in fp32, then align with the first Linear.
+        # FSDP mixed precision casts parameters to bf16 but does not install an
+        # autocast context around hand-built fp32 embeddings.
+        t_emb = sinusoidal_embedding_1d(self.freq_dim, t_tok)
+        t_emb = t_emb.to(dtype=self.time_embedding[0].weight.dtype)
+        e = self.time_embedding(t_emb)  # [B,S,dim]
         return self.time_projection(e).unflatten(-1, (6, self.cfg.dim))         # [B,S,6,dim]
 
     def forward(

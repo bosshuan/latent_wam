@@ -279,7 +279,9 @@ class LatentWorldActionDiT(nn.Module):
         seq, layout, slices = self.tokenizer.pack(ctx_h, z_h, a_h, v_h, state_hidden=state_h)
 
         # --- per-token timestep conditioning embed ---
-        cond_embed = self._token_timestep_embed(layout, latent_timestep, action_timestep, b)
+        cond_embed = self._token_timestep_embed(
+            layout, latent_timestep, action_timestep, b
+        ).to(dtype=seq.dtype)
 
         # --- condition (text shared cross-attn ONLY; proprio is in-sequence) ---
         cond_tokens = self.condition.text_tokens(text_embedding, b, device)

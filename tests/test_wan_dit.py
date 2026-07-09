@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import torch
 
+from models.heads.latent_flow import VJEPALatentFlowHead
 from models.wan_config import WanConfig
+from models.wan_blocks import WanBackbone
 from models.wan_latent_world_action_dit import WanLatentWorldActionDiT
 
 
@@ -33,6 +35,28 @@ def _robot(b=2, t_ctx=3, t_fut=2, n=4, n_act=2):
         proprio=torch.randn(b, 5),
         text=["pick up the cube", "stack the blocks"],
     )
+
+
+def test_timestep_embeddings_follow_module_dtype_without_autocast():
+    """FSDP bf16 parameters must not receive the fp32 sinusoid directly."""
+    cfg = WanConfig(
+        dim=24,
+        num_layers=1,
+        num_heads=2,
+        ffn_dim=48,
+        freq_dim=16,
+        text_dim=16,
+    )
+    backbone = WanBackbone(cfg).double()
+    modulation = backbone.timestep_modulation(torch.rand(2, 5, dtype=torch.float32))
+    assert modulation.dtype == torch.float64
+
+    latent_head = VJEPALatentFlowHead(hidden_dim=24, latent_dim=8).double()
+    velocity = latent_head(
+        torch.randn(2, 2, 4, 24, dtype=torch.float64),
+        torch.rand(2, dtype=torch.float32),
+    )
+    assert velocity.dtype == torch.float64
 
 
 def test_robot_forward_shapes():

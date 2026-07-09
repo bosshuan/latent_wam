@@ -41,7 +41,8 @@ class VJEPALatentFlowHead(nn.Module):
 
     def forward(self, hidden: torch.Tensor, t_z: torch.Tensor) -> torch.Tensor:
         # hidden: [B, T, N, hidden]; t_z: [B]
-        shift, scale = self.t_mod(self.t_embed(t_z)).chunk(2, dim=-1)  # [B,hidden] each
+        t_emb = self.t_embed(t_z).to(device=hidden.device, dtype=hidden.dtype)
+        shift, scale = self.t_mod(t_emb).chunk(2, dim=-1)  # [B,hidden] each
         # broadcast modulation over the (T, N) token axes
         while shift.ndim < hidden.ndim:
             shift = shift.unsqueeze(1)
