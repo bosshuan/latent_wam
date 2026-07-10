@@ -113,6 +113,8 @@ class CachedLatentRobotDataset(Dataset):
         start_item: int = 0,
         index_modulus: int | None = None,
         index_remainders: Sequence[int] | None = None,
+        episode_modulus: int | None = None,
+        episode_remainders: Sequence[int] | None = None,
         max_items: int | None = None,
         control_stats_path: str | Path | None = None,
     ) -> None:
@@ -120,6 +122,20 @@ class CachedLatentRobotDataset(Dataset):
             str(rec["dataset_id"]): rec for rec in _load_json(schema_report)
         }
         entries = _load_jsonl(manifest_path)
+        if episode_modulus is not None:
+            modulus = int(episode_modulus)
+            if modulus <= 0:
+                raise ValueError(
+                    f"episode_modulus must be positive, got {modulus}"
+                )
+            remainders = {
+                int(value) % modulus for value in (episode_remainders or [0])
+            }
+            entries = [
+                entry
+                for entry in entries
+                if int(entry["episode"]) % modulus in remainders
+            ]
         start = max(int(start_item), 0)
         if start:
             entries = entries[start:]

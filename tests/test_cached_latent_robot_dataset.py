@@ -118,6 +118,43 @@ def test_cached_latent_dataset_supports_modulo_split(tmp_path):
     assert [entry["sample_index"] for entry in ds.entries] == [1, 3, 5, 7]
 
 
+def test_cached_latent_dataset_filters_episode_before_max_items(tmp_path):
+    schema_path = tmp_path / "schema.json"
+    manifest_path = tmp_path / "manifest.jsonl"
+    schema_path.write_text(json.dumps([]))
+    rows = [
+        {
+            "dataset_id": "ds",
+            "episode": episode,
+            "sample_index": episode,
+            "cache_path": str(tmp_path / f"{episode}.pt"),
+        }
+        for episode in range(10)
+    ]
+    manifest_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+
+    train = CachedLatentRobotDataset(
+        schema_report=schema_path,
+        manifest_path=manifest_path,
+        episode_modulus=5,
+        episode_remainders=[0, 1, 2, 3],
+        max_items=3,
+    )
+    val = CachedLatentRobotDataset(
+        schema_report=schema_path,
+        manifest_path=manifest_path,
+        episode_modulus=5,
+        episode_remainders=[4],
+        max_items=10,
+    )
+
+    assert [entry["episode"] for entry in train.entries] == [0, 1, 2]
+    assert [entry["episode"] for entry in val.entries] == [4, 9]
+    assert {
+        entry["episode"] for entry in train.entries
+    }.isdisjoint(entry["episode"] for entry in val.entries)
+
+
 def test_cached_loader_distributed_sampler_partitions_without_overlap(tmp_path):
     schema_path = tmp_path / "schema.json"
     manifest_path = tmp_path / "manifest.jsonl"
@@ -153,3 +190,39 @@ def test_cached_loader_distributed_sampler_partitions_without_overlap(tmp_path):
     indices1 = set(iter(rank1.sampler))
     assert indices0.isdisjoint(indices1)
     assert indices0 | indices1 == set(range(8))
+
+
+def test_cached_loader_passes_episode_disjoint_split_to_dataset(tmp_path):
+    schema_path = tmp_path / "schema.json"
+    manifest_path = tmp_path / "manifest.jsonl"
+    schema_path.write_text(json.dumps([]))
+    rows = [
+        {
+            "dataset_id": "ds",
+            "episode": episode,
+            "sample_index": episode,
+            "cache_path": str(tmp_path / f"{episode}.pt"),
+        }
+        for episode in range(10)
+    ]
+    manifest_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    cfg = {
+        "schema_report": str(schema_path),
+        "manifest_path": str(manifest_path),
+        "data": {
+            "train_episode_modulus": 5,
+            "train_episode_remainders": [0, 1, 2, 3],
+            "train_max_items": 10,
+            "val_episode_modulus": 5,
+            "val_episode_remainders": [4],
+            "val_max_items": 10,
+        },
+    }
+
+    train = _build_loader(cfg, "train").dataset
+    val = _build_loader(cfg, "val").dataset
+    train_episodes = {entry["episode"] for entry in train.entries}
+    val_episodes = {entry["episode"] for entry in val.entries}
+    assert train_episodes == {0, 1, 2, 3, 5, 6, 7, 8}
+    assert val_episodes == {4, 9}
+    assert train_episodes.isdisjoint(val_episodes)

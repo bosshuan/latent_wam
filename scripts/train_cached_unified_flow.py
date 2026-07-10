@@ -62,6 +62,12 @@ def _build_loader(
         start_item=int(dcfg.get(f"{split}_start_item", dcfg.get("start_item", 0))),
         index_modulus=dcfg.get(f"{split}_index_modulus", dcfg.get("index_modulus")),
         index_remainders=dcfg.get(f"{split}_index_remainders", dcfg.get("index_remainders")),
+        episode_modulus=dcfg.get(
+            f"{split}_episode_modulus", dcfg.get("episode_modulus")
+        ),
+        episode_remainders=dcfg.get(
+            f"{split}_episode_remainders", dcfg.get("episode_remainders")
+        ),
         max_items=int(dcfg.get(f"{split}_max_items", dcfg.get("max_items", 16))),
         control_stats_path=cfg.get("control_stats_path"),
     )

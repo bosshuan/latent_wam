@@ -61,6 +61,10 @@ def main() -> None:
         "format_version": 1,
         "source_manifest": str(cfg["manifest_path"]),
         "split": {
+            "episode_modulus": cfg["data"].get("train_episode_modulus"),
+            "episode_remainders": cfg["data"].get(
+                "train_episode_remainders"
+            ),
             "index_modulus": cfg["data"].get("train_index_modulus"),
             "index_remainders": cfg["data"].get("train_index_remainders"),
             "max_items": cfg["data"].get("train_max_items"),

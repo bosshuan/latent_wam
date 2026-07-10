@@ -708,6 +708,28 @@ This writes
 separate `broad-v0` cache/version keys, leaving the medium smoke artifacts
 untouched.
 
+After the broad manifest contains 4096 items, fit action/state statistics on
+TRAIN episodes only (`episode_id % 5` in `[0,1,2,3]`):
+
+```bash
+bash scripts/fit_interndata_a1_dual_arm_control_stats_broad.sh
+```
+
+This writes `reports/interndata_a1/control_stats_broad_train.json`. Validation
+episodes (`episode_id % 5 == 4`) never contribute to these statistics. Then run
+a fresh 8-step real-Wan FSDP check on the three available debug GPUs:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/train_interndata_a1_dual_arm_wan_real_fsdp_short_broad.sh
+```
+
+The broad VJ-RAE defines a new latent space, so this command initializes from
+the official Wan2.2 checkpoint and fresh latent/action modules. Do not resume
+the medium `step_000064` or action-recovery `step_000128` checkpoints. The
+short-run acceptance remains fixed-batch loss reduction plus finite gradients;
+action-collapse monitors are diagnostic at this eight-step horizon.
+
 Real robot training should replace the server hooks in:
 
 ```text
