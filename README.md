@@ -730,6 +730,40 @@ the medium `step_000064` or action-recovery `step_000128` checkpoints. The
 short-run acceptance remains fixed-batch loss reduction plus finite gradients;
 action-collapse monitors are diagnostic at this eight-step horizon.
 
+After the broad short-run passes, start a fresh 64-step streaming pilot:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/train_interndata_a1_dual_arm_wan_fsdp_pilot_broad.sh
+```
+
+This uses all 3328 training windows, keeps 768 episode-disjoint validation
+windows, and writes the full model+Adam checkpoint to
+`checkpoints/interndata_a1/wan_fsdp_pilot_broad/step_000064`. Budget roughly
+60 GB of shared storage. It never reads the medium pilot checkpoint directory.
+
+First run the bounded aggregate gate (32 batches per rank, 192 global samples):
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint_broad.sh
+```
+
+Proceed to the complete 768-sample validation only if this gate reports
+`S_a >= 0.01`, `delta_cond > 0`, `cf_inconclusive=False`, and
+`collapse=False`:
+
+```bash
+MAX_BATCHES=0 \
+OUTPUT=reports/interndata_a1/wan_fsdp_pilot_broad_step64_eval_full.json \
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint_broad.sh
+```
+
+Use the full evaluation for the scale-up decision. Also inspect the pilot JSONL
+for validation `z_fm` and `a_fm` trends; a positive action monitor does not
+compensate for persistently worsening action-flow validation loss.
+
 Real robot training should replace the server hooks in:
 
 ```text
