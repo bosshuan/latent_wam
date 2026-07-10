@@ -764,6 +764,38 @@ Use the full evaluation for the scale-up decision. Also inspect the pilot JSONL
 for validation `z_fm` and `a_fm` trends; a positive action monitor does not
 compensate for persistently worsening action-flow validation loss.
 
+If step 64 learns latent/action flow but the complete validation
+`delta_cond` remains numerically close to zero, continue the same noisy-
+counterfactual recipe without changing loss weights:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/resume_interndata_a1_dual_arm_wan_fsdp_pilot_broad_256.sh
+```
+
+This restores broad step 64, trains through step 256, writes separate metrics,
+and saves `checkpoints/interndata_a1/wan_fsdp_pilot_broad/step_000256`. Run the
+192-sample gate with:
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint_broad_256.sh
+```
+
+If it passes, evaluate all 768 validation samples:
+
+```bash
+MAX_BATCHES=0 \
+OUTPUT=reports/interndata_a1/wan_fsdp_pilot_broad_step256_eval_full.json \
+CUDA_VISIBLE_DEVICES=4,5,6 \
+bash scripts/evaluate_interndata_a1_wan_fsdp_checkpoint_broad_256.sh
+```
+
+Aggregate reports include batch-level 95% confidence intervals. Strong
+action-conditioning evidence requires `S_a_confident=True` and
+`delta_cond_confident_positive=True`; a positive mean whose confidence interval
+crosses zero remains inconclusive.
+
 Real robot training should replace the server hooks in:
 
 ```text

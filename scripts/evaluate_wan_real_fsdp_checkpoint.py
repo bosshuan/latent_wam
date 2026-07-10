@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import math
 from pathlib import Path
 
 import torch
@@ -30,6 +31,16 @@ from train.fsdp_checkpoint import load_fsdp_checkpoint
 from train.train_unified_flow import MIN_ACTION_SENSITIVITY
 
 
+def _mean_sem(values: list[float]) -> tuple[float, float]:
+    mean = sum(values) / len(values)
+    if len(values) < 2:
+        return mean, 0.0
+    variance = sum((value - mean) ** 2 for value in values) / (
+        len(values) - 1
+    )
+    return mean, math.sqrt(variance / len(values))
+
+
 def _aggregate(metrics: list[dict], weights: UnifiedLossWeights) -> dict:
     keys = _LOSS_KEYS + _MONITOR_KEYS
     result = {
@@ -37,6 +48,26 @@ def _aggregate(metrics: list[dict], weights: UnifiedLossWeights) -> dict:
         for key in keys
     }
     result["batch_alarm_count"] = sum(bool(item["collapse"]) for item in metrics)
+    sensitivity, sensitivity_sem = _mean_sem(
+        [float(item["S_a"]) for item in metrics]
+    )
+    delta, delta_sem = _mean_sem(
+        [float(item["delta_cond"]) for item in metrics]
+    )
+    result["S_a"] = sensitivity
+    result["S_a_sem"] = sensitivity_sem
+    result["S_a_ci95_low"] = sensitivity - 1.96 * sensitivity_sem
+    result["S_a_ci95_high"] = sensitivity + 1.96 * sensitivity_sem
+    result["S_a_confident"] = (
+        result["S_a_ci95_low"] >= MIN_ACTION_SENSITIVITY
+    )
+    result["delta_cond"] = delta
+    result["delta_cond_sem"] = delta_sem
+    result["delta_cond_ci95_low"] = delta - 1.96 * delta_sem
+    result["delta_cond_ci95_high"] = delta + 1.96 * delta_sem
+    result["delta_cond_confident_positive"] = (
+        result["delta_cond_ci95_low"] > 0.0
+    )
     result["cf_inconclusive"] = (
         result["cf_valid_frac"]
         < weights.min_counterfactual_valid_frac_for_alarm
@@ -167,6 +198,10 @@ def main() -> None:
                 f"global_samples={global_samples} "
                 f"{_format_metrics(aggregate, _LOSS_KEYS + _MONITOR_KEYS)} "
                 f"batch_alarm_count={aggregate['batch_alarm_count']} "
+                f"S_a_ci95=[{aggregate['S_a_ci95_low']:.6f},"
+                f"{aggregate['S_a_ci95_high']:.6f}] "
+                f"delta_cond_ci95=[{aggregate['delta_cond_ci95_low']:.6f},"
+                f"{aggregate['delta_cond_ci95_high']:.6f}] "
                 f"cf_inconclusive={aggregate['cf_inconclusive']} "
                 f"collapse={aggregate['collapse']}",
                 flush=True,

@@ -32,6 +32,10 @@ def test_aggregate_uses_split_mean_for_collapse_decision():
 
     assert result["S_a"] == pytest.approx(0.02)
     assert result["delta_cond"] == pytest.approx(0.1)
+    assert result["delta_cond_sem"] == pytest.approx(0.2)
+    assert result["delta_cond_ci95_low"] == pytest.approx(-0.292)
+    assert result["delta_cond_ci95_high"] == pytest.approx(0.492)
+    assert result["delta_cond_confident_positive"] is False
     assert result["batch_alarm_count"] == 1
     assert result["collapse"] is False
 
@@ -46,4 +50,5 @@ def test_aggregate_detects_split_level_action_collapse():
     )
 
     assert result["batch_alarm_count"] == 2
+    assert result["S_a_confident"] is False
     assert result["collapse"] is True
